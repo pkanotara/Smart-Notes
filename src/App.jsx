@@ -1,45 +1,55 @@
-import React, { useState, useEffect } from "react";
-import Editor from "./components/RichTextEditor/Editor";
-import NotesList from "./components/NotesList/NotesList";
-import SearchBar from "./components/Search/SearchBar";
-import PasswordProtection from "./components/Encryption/PasswordProtection";
-import { storageService } from "./services/storageService";
-import { encryptionService } from "./services/encryptionService";
-import { aiService } from "./services/aiService";
-import { Loader2 } from "lucide-react";
+import React, { useState, useEffect } from 'react';
+import Editor from './components/RichTextEditor/Editor';
+import NotesList from './components/NotesList/NotesList';
+import SearchBar from './components/Search/SearchBar';
+import PasswordProtection from './components/Encryption/PasswordProtection';
+import ResizableSplitPane from './components/ResizableSplitPane/ResizableSplitPane';
+import AIPanel from './components/AIPanel/AIPanel';
+import ToastContainer from './components/Toast/ToastContainer';
+import DarkModeToggle from './components/DarkMode/DarkModeToggle';
+import ExportMenu from './components/ExportMenu/ExportMenu';
+import { storageService } from './services/storageService';
+import { encryptionService } from './services/encryptionService';
+import { aiService } from './services/aiService';
+import { useToast } from './hooks/useToast';
+import { Loader2, Menu, X, Plus, Sparkles, Download } from 'lucide-react';
 
 function App() {
   const [notes, setNotes] = useState([]);
   const [activeNoteId, setActiveNoteId] = useState(null);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState('');
   const [showPasswordModal, setShowPasswordModal] = useState(false);
-  const [passwordMode, setPasswordMode] = useState("set");
+  const [passwordMode, setPasswordMode] = useState('set');
   const [pendingEncryptionNoteId, setPendingEncryptionNoteId] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [aiPanel, setAiPanel] = useState({ show: false, type: "", data: null });
+  const [aiPanel, setAiPanel] = useState({ show: false, type: '', data: null });
   const [glossaryTerms, setGlossaryTerms] = useState([]);
+  const [grammarErrors, setGrammarErrors] = useState([]);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [showExportMenu, setShowExportMenu] = useState(false);
+  const { toasts, addToast, removeToast } = useToast();
 
-  // ✅ Load notes on mount
   useEffect(() => {
-    console.log("🔄 Loading notes from storage...");
+    console.log('🔄 Loading notes from storage...');
     const loadedNotes = storageService.loadNotes();
-    console.log("📦 Loaded notes:", loadedNotes);
-
+    console.log('📦 Loaded notes:', loadedNotes);
+    
     if (loadedNotes && loadedNotes.length > 0) {
       setNotes(loadedNotes);
       setActiveNoteId(loadedNotes[0].id);
     } else {
-      // Create a welcome note if no notes exist
+      const now = Date.now();
       const welcomeNote = {
-        id: Date.now().toString(),
-        title: "Welcome to Smart Notes",
-        content:
-          "<h2>Welcome to Smart Notes! 👋</h2><p>This is your first note. You can:</p><ul><li><strong>Format text</strong> using the toolbar</li><li>Use <strong>AI features</strong> (Summary, Tags, Glossary, Grammar)</li><li><strong>Pin</strong> important notes to the top</li><li><strong>Encrypt</strong> sensitive notes with passwords</li><li><strong>Edit titles</strong> by clicking on them</li></ul><p>Start writing your own content or create a new note!</p>",
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
+        id: now.toString(),
+        title: 'Welcome to Smart Notes ✨',
+        content: '<h1>Welcome to Smart Notes! 👋</h1><p>Your intelligent note-taking companion with AI superpowers.</p><h2>✨ Features</h2><ul><li><strong>Rich Text Editing</strong> - Format your notes beautifully</li><li><strong>AI Integration</strong> - Get summaries, tags, glossary, and grammar checks</li><li><strong>End-to-End Encryption</strong> - Protect sensitive notes with passwords</li><li><strong>Dark Mode</strong> - Easy on the eyes, day or night</li><li><strong>Export Options</strong> - Download as Markdown, PDF, or Plain Text</li><li><strong>Timestamps</strong> - Track when notes are created and modified</li></ul><h2>🚀 Quick Start</h2><p>1. Click the <strong>+ New Note</strong> button to create a note</p><p>2. Use the toolbar to format your content</p><p>3. Try AI features by clicking the floating AI button</p><p>4. Pin important notes to keep them at the top</p><p>5. Lock sensitive notes with encryption</p><p><em>Start writing and let AI help you organize your thoughts!</em></p>',
+        createdAt: now,
+        updatedAt: now,
+        createdBy: 'pkanotara',
         isPinned: false,
         isEncrypted: false,
-        tags: [],
+        tags: ['welcome', 'tutorial'],
+        fontSize: 'normal',
       };
       setNotes([welcomeNote]);
       setActiveNoteId(welcomeNote.id);
@@ -47,141 +57,132 @@ function App() {
     }
   }, []);
 
-  // ✅ Save notes whenever they change
   useEffect(() => {
     if (notes.length > 0) {
-      console.log("💾 Saving notes to storage...", notes.length, "notes");
+      console.log('💾 Saving notes to storage...', notes.length, 'notes');
       storageService.saveNotes(notes);
     }
   }, [notes]);
 
   const activeNote = notes.find((n) => n.id === activeNoteId);
 
-  // Helper function to get text content (selected or full)
   const getTextContent = () => {
     const selection = window.getSelection();
     const selectedText = selection?.toString().trim();
-
+    
     if (selectedText && selectedText.length > 0) {
       return selectedText;
     }
-
+    
     if (activeNote) {
-      const div = document.createElement("div");
+      const div = document.createElement('div');
       div.innerHTML = activeNote.content;
-      return (div.textContent || div.innerText || "").trim();
+      return (div.textContent || div.innerText || '').trim();
     }
-
-    return "";
+    
+    return '';
   };
 
   const createNote = () => {
+    const now = Date.now();
     const newNote = {
-      id: Date.now().toString(),
-      title: "Untitled Note",
-      content: "<p>Start writing...</p>",
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
+      id: now.toString(),
+      title: 'Untitled Note',
+      content: '<p>Start writing...</p>',
+      createdAt: now,
+      updatedAt: now,
+      createdBy: 'pkanotara',
       isPinned: false,
       isEncrypted: false,
       tags: [],
+      fontSize: 'normal',
     };
-
-    console.log("➕ Creating new note:", newNote);
+    
+    console.log('➕ Creating new note:', newNote);
     const updatedNotes = [newNote, ...notes];
     setNotes(updatedNotes);
     setActiveNoteId(newNote.id);
     setGlossaryTerms([]);
-    setAiPanel({ show: false, type: "", data: null });
+    setGrammarErrors([]);
+    setAiPanel({ show: false, type: '', data: null });
+    setSidebarOpen(false);
+    addToast('New note created!', 'success', 2000);
   };
 
   const updateNote = (updates) => {
-    console.log("📝 Updating note:", activeNoteId, updates);
-    setNotes((prevNotes) =>
-      prevNotes.map((note) =>
-        note.id === activeNoteId
-          ? { ...note, ...updates, updatedAt: Date.now() }
-          : note
-      )
-    );
+    console.log('📝 Updating note:', activeNoteId, updates);
+    setNotes(prevNotes => prevNotes.map((note) =>
+      note.id === activeNoteId
+        ? { ...note, ...updates, updatedAt: Date.now() }
+        : note
+    ));
   };
 
   const deleteNote = (id) => {
-    if (confirm("Are you sure you want to delete this note?")) {
-      console.log("🗑️ Deleting note:", id);
-      const updatedNotes = notes.filter((n) => n.id !== id);
-      setNotes(updatedNotes);
-
-      if (activeNoteId === id) {
-        const newActiveId = updatedNotes.length > 0 ? updatedNotes[0].id : null;
-        setActiveNoteId(newActiveId);
-        setGlossaryTerms([]);
-        setAiPanel({ show: false, type: "", data: null });
-      }
+    const noteToDelete = notes.find(n => n.id === id);
+    const updatedNotes = notes.filter((n) => n.id !== id);
+    setNotes(updatedNotes);
+    
+    if (activeNoteId === id) {
+      const newActiveId = updatedNotes.length > 0 ? updatedNotes[0].id : null;
+      setActiveNoteId(newActiveId);
+      setGlossaryTerms([]);
+      setGrammarErrors([]);
+      setAiPanel({ show: false, type: '', data: null });
     }
+    
+    addToast(`"${noteToDelete.title}" deleted`, 'info', 2000);
   };
 
   const handleContentChange = (newContent) => {
     if (!activeNote?.isEncrypted) {
-      console.log("✏️ Content changed for note:", activeNoteId);
-
-      // ✅ Only auto-update title if it's still "Untitled Note" or "Start writing..."
-      if (
-        activeNote.title === "Untitled Note" ||
-        activeNote.title === "Start writing..."
-      ) {
-        const div = document.createElement("div");
+      if (activeNote.title === 'Untitled Note' || activeNote.title === 'Start writing...') {
+        const div = document.createElement('div');
         div.innerHTML = newContent;
-        const text = div.textContent || div.innerText || "";
-        const firstLine = text.split("\n")[0].trim().substring(0, 50);
-        const title = firstLine || "Untitled Note";
-
+        const text = div.textContent || div.innerText || '';
+        const firstLine = text.split('\n')[0].trim().substring(0, 50);
+        const title = firstLine || 'Untitled Note';
+        
         updateNote({ content: newContent, title });
       } else {
-        // Just update content, keep existing title
         updateNote({ content: newContent });
       }
     }
   };
 
-  // ✅ Handle title changes
   const handleTitleChange = (newTitle) => {
-    console.log("📝 Title changed for note:", activeNoteId, "to:", newTitle);
     updateNote({ title: newTitle });
+    addToast('Title updated', 'success', 1500);
   };
 
   const handleSelectNote = (id) => {
-    console.log("🔄 Switching to note:", id);
     setActiveNoteId(id);
     setGlossaryTerms([]);
-    setAiPanel({ show: false, type: "", data: null });
+    setGrammarErrors([]);
+    setAiPanel({ show: false, type: '', data: null });
+    setSidebarOpen(false);
   };
 
   const togglePin = () => {
     updateNote({ isPinned: !activeNote.isPinned });
+    addToast(activeNote.isPinned ? 'Note unpinned' : 'Note pinned', 'success', 2000);
   };
 
   const toggleEncryption = () => {
     if (!activeNote) return;
-
+    
     if (activeNote.isEncrypted) {
-      // Decrypt
-      setPasswordMode("unlock");
+      setPasswordMode('unlock');
       setPendingEncryptionNoteId(activeNoteId);
       setShowPasswordModal(true);
     } else {
-      // Encrypt - make sure content is saved first
       const currentContent = activeNote.content;
-      if (
-        !currentContent ||
-        currentContent.trim().length === 0 ||
-        currentContent === "<p>Start writing...</p>"
-      ) {
-        alert("⚠️ Please add some content to the note before encrypting it.");
+      if (!currentContent || currentContent.trim().length === 0 || currentContent === '<p>Start writing...</p>') {
+        addToast('Please add content before encrypting', 'warning', 3000);
         return;
       }
-
-      setPasswordMode("set");
+      
+      setPasswordMode('set');
       setPendingEncryptionNoteId(activeNoteId);
       setShowPasswordModal(true);
     }
@@ -193,88 +194,52 @@ function App() {
       const note = notes.find((n) => n.id === pendingEncryptionNoteId);
 
       if (!note) {
-        alert("Note not found");
+        addToast('Note not found', 'error');
         setLoading(false);
         setShowPasswordModal(false);
         return;
       }
 
-      if (passwordMode === "set") {
-        // ENCRYPTING
-        console.log("🔐 Encrypting note...");
-        const encrypted = await encryptionService.encrypt(
-          note.content,
-          password
-        );
-
-        setNotes((prevNotes) =>
-          prevNotes.map((n) =>
-            n.id === pendingEncryptionNoteId
-              ? {
-                  ...n,
-                  content: encrypted,
-                  isEncrypted: true,
-                  updatedAt: Date.now(),
-                }
-              : n
-          )
-        );
-
+      if (passwordMode === 'set') {
+        const encrypted = await encryptionService.encrypt(note.content, password);
+        
+        setNotes(prevNotes => prevNotes.map((n) =>
+          n.id === pendingEncryptionNoteId
+            ? { ...n, content: encrypted, isEncrypted: true, updatedAt: Date.now() }
+            : n
+        ));
+        
         setShowPasswordModal(false);
         setPendingEncryptionNoteId(null);
         setLoading(false);
-
-        // Show success message after modal closes
-        setTimeout(() => {
-          alert("✅ Note encrypted successfully!");
-        }, 200);
+        addToast('Note encrypted successfully!', 'success');
+        
       } else {
-        // DECRYPTING
         try {
-          console.log("🔓 Decrypting note...");
-          const decrypted = await encryptionService.decrypt(
-            note.content,
-            password
-          );
-          console.log(
-            "✅ Decryption successful, content length:",
-            decrypted.length
-          );
-
-          // Update notes with decrypted content
-          setNotes((prevNotes) =>
-            prevNotes.map((n) =>
-              n.id === pendingEncryptionNoteId
-                ? {
-                    ...n,
-                    content: decrypted,
-                    isEncrypted: false,
-                    updatedAt: Date.now(),
-                  }
-                : n
-            )
-          );
-
+          const decrypted = await encryptionService.decrypt(note.content, password);
+          
+          setNotes(prevNotes => prevNotes.map((n) =>
+            n.id === pendingEncryptionNoteId
+              ? { ...n, content: decrypted, isEncrypted: false, updatedAt: Date.now() }
+              : n
+          ));
+          
           setShowPasswordModal(false);
           setPendingEncryptionNoteId(null);
           setLoading(false);
-
-          // Show success message
-          setTimeout(() => {
-            alert("✅ Note decrypted successfully!");
-          }, 200);
+          addToast('Note decrypted successfully!', 'success');
+          
         } catch (decryptError) {
-          console.error("❌ Decryption failed:", decryptError);
+          console.error('❌ Decryption failed:', decryptError);
           setLoading(false);
-          alert("❌ Incorrect password. Please try again.");
-          // Keep modal open for retry
+          addToast('Incorrect password', 'error');
           return;
         }
       }
     } catch (error) {
-      console.error("💥 Password operation error:", error);
+      console.error('💥 Password operation error:', error);
       setLoading(false);
-      alert("Error: " + error.message);
+      addToast('Encryption error: ' + error.message, 'error');
       setShowPasswordModal(false);
       setPendingEncryptionNoteId(null);
     }
@@ -282,32 +247,40 @@ function App() {
 
   const handleAISummary = async () => {
     if (!activeNote) {
-      alert("No note selected");
+      addToast('No note selected', 'warning');
       return;
     }
 
     if (activeNote.isEncrypted) {
-      alert("Cannot use AI features on encrypted notes. Please decrypt first.");
+      addToast('Cannot use AI on encrypted notes', 'warning');
       return;
     }
-
+    
+    setGlossaryTerms([]);
+    setGrammarErrors([]);
+    
     try {
       setLoading(true);
       const text = getTextContent();
-
+      
       if (!text || text.length < 10) {
-        alert(
-          "Please select some text or write more content in your note (at least 10 characters)."
-        );
+        addToast('Please add more content', 'warning');
         setLoading(false);
         return;
       }
-
-      const summary = await aiService.summarizeNote(text);
-      setAiPanel({ show: true, type: "summary", data: summary });
+      
+      const summaryPromise = aiService.summarizeNote(text);
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Request timeout')), 15000)
+      );
+      
+      const summary = await Promise.race([summaryPromise, timeoutPromise]);
+      
+      setAiPanel({ show: true, type: 'summary', data: summary });
+      addToast('Summary generated!', 'success');
     } catch (error) {
-      console.error("AI Summary Error:", error);
-      alert("Failed to generate summary: " + error.message);
+      console.error('AI Summary Error:', error);
+      addToast('Failed to generate summary', 'error');
     } finally {
       setLoading(false);
     }
@@ -315,42 +288,47 @@ function App() {
 
   const handleAITags = async () => {
     if (!activeNote) {
-      alert("No note selected");
+      addToast('No note selected', 'warning');
       return;
     }
 
     if (activeNote.isEncrypted) {
-      alert("Cannot use AI features on encrypted notes. Please decrypt first.");
+      addToast('Cannot use AI on encrypted notes', 'warning');
       return;
     }
-
+    
+    setGlossaryTerms([]);
+    setGrammarErrors([]);
+    
     try {
       setLoading(true);
       const text = getTextContent();
-
+      
       if (!text || text.length < 20) {
-        alert(
-          "Please select some text or write more content (at least 20 characters) for tag suggestions."
-        );
+        addToast('Please add more content', 'warning');
         setLoading(false);
         return;
       }
-
-      const tags = await aiService.suggestTags(text);
-
+      
+      const tagsPromise = aiService.suggestTags(text);
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Request timeout')), 15000)
+      );
+      
+      const tags = await Promise.race([tagsPromise, timeoutPromise]);
+      
       if (tags.length === 0) {
-        alert(
-          "No tags could be generated. Try adding more descriptive content."
-        );
+        addToast('No tags generated', 'info');
         setLoading(false);
         return;
       }
-
+      
       updateNote({ tags });
-      setAiPanel({ show: true, type: "tags", data: tags });
+      setAiPanel({ show: true, type: 'tags', data: tags });
+      addToast(`${tags.length} tags generated!`, 'success');
     } catch (error) {
-      console.error("AI Tags Error:", error);
-      alert("Failed to generate tags: " + error.message);
+      console.error('AI Tags Error:', error);
+      addToast('Failed to generate tags', 'error');
     } finally {
       setLoading(false);
     }
@@ -358,42 +336,46 @@ function App() {
 
   const handleGlossary = async () => {
     if (!activeNote) {
-      alert("No note selected");
+      addToast('No note selected', 'warning');
       return;
     }
 
     if (activeNote.isEncrypted) {
-      alert("Cannot use AI features on encrypted notes. Please decrypt first.");
+      addToast('Cannot use AI on encrypted notes', 'warning');
       return;
     }
-
+    
+    setGrammarErrors([]);
+    
     try {
       setLoading(true);
       const text = getTextContent();
-
+      
       if (!text || text.length < 30) {
-        alert(
-          "Please select some text or write more content (at least 30 characters) with technical terms for glossary highlighting."
-        );
+        addToast('Please add more content', 'warning');
         setLoading(false);
         return;
       }
-
-      const terms = await aiService.identifyGlossaryTerms(text);
-
+      
+      const glossaryPromise = aiService.identifyGlossaryTerms(text);
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Request timeout')), 15000)
+      );
+      
+      const terms = await Promise.race([glossaryPromise, timeoutPromise]);
+      
       if (terms.length === 0) {
-        alert(
-          "No key terms identified. Try adding more technical or specific content."
-        );
+        addToast('No key terms found', 'info');
         setLoading(false);
         return;
       }
-
+      
       setGlossaryTerms(terms);
-      setAiPanel({ show: true, type: "glossary", data: terms });
+      setAiPanel({ show: true, type: 'glossary', data: terms });
+      addToast(`${terms.length} terms highlighted!`, 'success');
     } catch (error) {
-      console.error("Glossary Error:", error);
-      alert("Failed to identify glossary terms: " + error.message);
+      console.error('Glossary Error:', error);
+      addToast('Failed to identify terms', 'error');
     } finally {
       setLoading(false);
     }
@@ -401,69 +383,179 @@ function App() {
 
   const handleGrammarCheck = async () => {
     if (!activeNote) {
-      alert("No note selected");
+      addToast('No note selected', 'warning');
       return;
     }
 
     if (activeNote.isEncrypted) {
-      alert("Cannot use AI features on encrypted notes. Please decrypt first.");
+      addToast('Cannot use AI on encrypted notes', 'warning');
       return;
     }
-
+    
+    setGlossaryTerms([]);
+    
     try {
       setLoading(true);
       const text = getTextContent();
-
+      
       if (!text || text.length < 10) {
-        alert(
-          "Please select some text or write more content (at least 10 characters) for grammar checking."
-        );
+        addToast('Please add more content', 'warning');
         setLoading(false);
         return;
       }
-
-      const errors = await aiService.checkGrammar(text);
-      setAiPanel({ show: true, type: "grammar", data: errors || [] });
+      
+      const grammarPromise = aiService.checkGrammar(text);
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Request timeout')), 15000)
+      );
+      
+      const errors = await Promise.race([grammarPromise, timeoutPromise]);
+      
+      setGrammarErrors(errors || []);
+      setAiPanel({ show: true, type: 'grammar', data: errors || [] });
+      
+      if (!errors || errors.length === 0) {
+        addToast('Perfect grammar! No errors found', 'success');
+      } else {
+        addToast(`${errors.length} issues found`, 'info');
+      }
     } catch (error) {
-      console.error("Grammar Check Error:", error);
-      alert("Failed to check grammar: " + error.message);
+      console.error('Grammar Check Error:', error);
+      addToast('Failed to check grammar', 'error');
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleFixAllGrammar = (grammarErrorsList) => {
+    if (!activeNote || !grammarErrorsList || grammarErrorsList.length === 0) return;
+
+    let correctedContent = activeNote.content;
+    correctedContent = correctedContent.replace(/<span class="grammar-error"[^>]*>(.*?)<\/span>/gi, '$1');
+    
+    grammarErrorsList.forEach((error) => {
+      const regex = new RegExp(error.error.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g');
+      correctedContent = correctedContent.replace(regex, error.suggestion);
+    });
+
+    if (!correctedContent || correctedContent.trim() === '') {
+      addToast('Error: Could not apply fixes', 'error');
+      return;
+    }
+    
+    updateNote({ content: correctedContent });
+    setGrammarErrors([]);
+    setAiPanel({ show: false, type: '', data: null });
+    
+    addToast(`Fixed ${grammarErrorsList.length} grammar errors!`, 'success', 3000);
+  };
+
+  const handleFixSingleError = (error, suggestion) => {
+    if (!activeNote) return;
+    
+    let correctedContent = activeNote.content;
+    correctedContent = correctedContent.replace(/<span class="grammar-error"[^>]*>(.*?)<\/span>/gi, '$1');
+    correctedContent = correctedContent.replace(error, suggestion);
+    
+    if (!correctedContent || correctedContent.trim() === '') {
+      return;
+    }
+    
+    updateNote({ content: correctedContent });
+    
+    const updatedErrors = grammarErrors.filter(e => e.error !== error);
+    setGrammarErrors(updatedErrors);
+    
+    if (aiPanel.show && aiPanel.type === 'grammar') {
+      setAiPanel({ 
+        show: true, 
+        type: 'grammar', 
+        data: updatedErrors 
+      });
+    }
+    
+    addToast('Grammar error fixed!', 'success', 2000);
   };
 
   const filteredNotes = notes.filter((note) => {
     if (!searchQuery) return true;
     const query = searchQuery.toLowerCase();
     const titleMatch = note.title.toLowerCase().includes(query);
-
+    
     if (note.isEncrypted) return titleMatch;
-
-    const div = document.createElement("div");
+    
+    const div = document.createElement('div');
     div.innerHTML = note.content;
-    const text = div.textContent || div.innerText || "";
+    const text = div.textContent || div.innerText || '';
     const contentMatch = text.toLowerCase().includes(query);
-
+    
     return titleMatch || contentMatch;
   });
 
   return (
-    <div className="h-screen flex flex-col">
-      {/* Header */}
-      <header className="bg-primary-600 text-white p-4 shadow-lg">
-        <div className="max-w-screen-2xl mx-auto flex items-center justify-between">
-          <h1 className="text-2xl font-bold">📝 Smart Notes</h1>
-          <p className="text-sm opacity-90">AI-Powered Note Taking</p>
+    <div className="h-full flex flex-col bg-[#FAFAFA] dark:bg-[#0A0A0A]">
+      <ToastContainer toasts={toasts} removeToast={removeToast} />
+
+      {/* Header - Professional Design */}
+      <header className="border-b border-[#E5E5E5] dark:border-[#1F1F1F] bg-white/80 dark:bg-[#0F0F0F]/80 backdrop-blur-xl flex-shrink-0 relative z-50">
+        <div className="px-4 py-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setSidebarOpen(!sidebarOpen)}
+                className="lg:hidden p-2 rounded-lg hover:bg-[#F5F5F5] dark:hover:bg-[#1A1A1A] transition-colors"
+                aria-label="Toggle menu"
+              >
+                {sidebarOpen ? <X size={20} className="text-[#171717] dark:text-[#E5E5E5]" /> : <Menu size={20} className="text-[#171717] dark:text-[#E5E5E5]" />}
+              </button>
+              
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 bg-gradient-to-br from-[#6366F1] to-[#8B5CF6] rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/20">
+                  <Sparkles className="text-white" size={16} />
+                </div>
+                <div>
+                  <h1 className="text-base font-bold text-[#171717] dark:text-[#FAFAFA] tracking-tight">
+                    Smart Notes
+                  </h1>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              {activeNote && (
+                <button
+                  onClick={() => setShowExportMenu(true)}
+                  className="hidden sm:flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-[#525252] dark:text-[#A3A3A3] hover:text-[#171717] dark:hover:text-[#FAFAFA] hover:bg-[#F5F5F5] dark:hover:bg-[#1A1A1A] rounded-lg transition-all"
+                  title="Export note"
+                >
+                  <Download size={16} />
+                  <span>Export</span>
+                </button>
+              )}
+              <DarkModeToggle />
+            </div>
+          </div>
         </div>
       </header>
 
-      {/* Main Content */}
-      <div className="flex-1 flex overflow-hidden max-w-screen-2xl mx-auto w-full">
-        {/* Sidebar */}
-        <div className="w-80 border-r border-gray-200 flex flex-col">
-          <div className="p-4">
+      <div className="flex-1 flex overflow-hidden relative">
+        {/* Sidebar - Professional Design */}
+        <div
+          className={`
+            fixed lg:relative inset-y-0 left-0 z-40
+            w-72 lg:w-72 xl:w-80
+            bg-white/80 dark:bg-[#0F0F0F]/80 backdrop-blur-xl border-r border-[#E5E5E5] dark:border-[#1F1F1F]
+            shadow-2xl lg:shadow-none
+            transform transition-transform duration-300 ease-in-out
+            ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+            flex flex-col
+            top-[53px] lg:top-0
+          `}
+        >
+          <div className="p-3 border-b border-[#E5E5E5] dark:border-[#1F1F1F]">
             <SearchBar onSearch={setSearchQuery} />
           </div>
+          
           <div className="flex-1 overflow-hidden">
             <NotesList
               notes={filteredNotes}
@@ -475,147 +567,120 @@ function App() {
           </div>
         </div>
 
-        {/* Editor */}
-        <div className="flex-1 p-4 overflow-hidden">
-          {activeNote ? (
-            <Editor
-              key={`${activeNoteId}-${
-                activeNote.isEncrypted ? "encrypted" : "normal"
-              }`} // ✅ FORCE REMOUNT
-              noteId={activeNoteId}
-              title={activeNote.title}
-              content={activeNote.content}
-              onChange={handleContentChange}
-              onTitleChange={handleTitleChange}
-              onSave={() => {}}
-              onDelete={() => deleteNote(activeNote.id)}
-              onAISummary={handleAISummary}
-              onAITags={handleAITags}
-              onGlossary={handleGlossary}
-              onGrammarCheck={handleGrammarCheck}
-              onToggleEncryption={toggleEncryption}
-              onTogglePin={togglePin}
-              isEncrypted={activeNote.isEncrypted}
-              isPinned={activeNote.isPinned}
-              glossaryTerms={glossaryTerms}
-            />
-          ) : (
-            <div className="h-full flex items-center justify-center text-gray-400">
-              <div className="text-center">
-                <p className="text-xl mb-2">No note selected</p>
-                <p className="text-sm">Create a new note to get started</p>
-              </div>
-            </div>
-          )}
-        </div>
+        {sidebarOpen && (
+          <div
+            className="fixed inset-0 bg-black/20 backdrop-blur-sm z-30 lg:hidden top-[53px]"
+            onClick={() => setSidebarOpen(false)}
+          />
+        )}
 
-        {/* AI Panel */}
-        {aiPanel.show && (
-          <div className="w-80 border-l border-gray-200 bg-white p-4 overflow-y-auto">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="font-semibold text-lg">AI Insights</h3>
-              <button
-                onClick={() =>
-                  setAiPanel({ show: false, type: "", data: null })
-                }
-                className="text-gray-500 hover:text-gray-700"
-              >
-                ✕
-              </button>
-            </div>
-
-            {aiPanel.type === "summary" && (
-              <div>
-                <h4 className="font-medium mb-2 text-purple-600">Summary</h4>
-                <p className="text-sm text-gray-700 bg-purple-50 p-3 rounded-lg">
-                  {aiPanel.data}
-                </p>
-              </div>
-            )}
-
-            {aiPanel.type === "tags" && (
-              <div>
-                <h4 className="font-medium mb-2 text-purple-600">
-                  Suggested Tags
-                </h4>
-                <div className="flex flex-wrap gap-2">
-                  {aiPanel.data?.map((tag, i) => (
-                    <span
-                      key={i}
-                      className="bg-primary-100 text-primary-700 px-3 py-1 rounded-full text-sm"
-                    >
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {aiPanel.type === "glossary" && (
-              <div>
-                <h4 className="font-medium mb-2 text-purple-600">Key Terms</h4>
-                <div className="space-y-3">
-                  {aiPanel.data?.map((item, i) => (
-                    <div
-                      key={i}
-                      className="border-l-4 border-yellow-400 pl-3 bg-yellow-50 p-2 rounded"
-                    >
-                      <p className="font-medium text-sm">{item.term}</p>
-                      <p className="text-xs text-gray-600 mt-1">
-                        {item.definition}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {aiPanel.type === "grammar" && (
-              <div>
-                <h4 className="font-medium mb-2 text-purple-600">
-                  Grammar Check
-                </h4>
-                {!aiPanel.data || aiPanel.data.length === 0 ? (
-                  <div className="bg-green-50 p-3 rounded-lg flex items-center gap-2">
-                    <span className="text-green-600 text-xl">✓</span>
-                    <span className="text-sm text-green-600">
-                      No errors found! Your grammar looks good.
-                    </span>
+        <div className="flex-1 flex flex-col overflow-hidden">
+          <div className="flex-1 p-3 lg:p-4 overflow-hidden">
+            {activeNote ? (
+              aiPanel.show ? (
+                <ResizableSplitPane
+                  defaultSize={55}
+                  minSize={30}
+                  maxSize={70}
+                  left={
+                    <Editor
+                      key={`${activeNoteId}-${activeNote.isEncrypted ? 'encrypted' : 'normal'}`}
+                      noteId={activeNoteId}
+                      title={activeNote.title}
+                      content={activeNote.content}
+                      onChange={handleContentChange}
+                      onTitleChange={handleTitleChange}
+                      onSave={() => {}}
+                      onDelete={() => deleteNote(activeNote.id)}
+                      onAISummary={handleAISummary}
+                      onAITags={handleAITags}
+                      onGlossary={handleGlossary}
+                      onGrammarCheck={handleGrammarCheck}
+                      onToggleEncryption={toggleEncryption}
+                      onTogglePin={togglePin}
+                      isEncrypted={activeNote.isEncrypted}
+                      isPinned={activeNote.isPinned}
+                      glossaryTerms={glossaryTerms}
+                      grammarErrors={grammarErrors}
+                      onFixGrammarError={handleFixSingleError}
+                      createdAt={activeNote.createdAt}
+                      updatedAt={activeNote.updatedAt}
+                      createdBy={activeNote.createdBy}
+                      updateNote={updateNote}
+                    />
+                  }
+                  right={
+                    <AIPanel
+                      type={aiPanel.type}
+                      data={aiPanel.data}
+                      onClose={() => {
+                        setAiPanel({ show: false, type: '', data: null });
+                        if (aiPanel.type === 'grammar') {
+                          setGrammarErrors([]);
+                        }
+                        if (aiPanel.type === 'glossary') {
+                          setGlossaryTerms([]);
+                        }
+                      }}
+                      onFixAllGrammar={handleFixAllGrammar}
+                    />
+                  }
+                />
+              ) : (
+                <Editor
+                  key={`${activeNoteId}-${activeNote.isEncrypted ? 'encrypted' : 'normal'}`}
+                  noteId={activeNoteId}
+                  title={activeNote.title}
+                  content={activeNote.content}
+                  onChange={handleContentChange}
+                  onTitleChange={handleTitleChange}
+                  onSave={() => {}}
+                  onDelete={() => deleteNote(activeNote.id)}
+                  onAISummary={handleAISummary}
+                  onAITags={handleAITags}
+                  onGlossary={handleGlossary}
+                  onGrammarCheck={handleGrammarCheck}
+                  onToggleEncryption={toggleEncryption}
+                  onTogglePin={togglePin}
+                  isEncrypted={activeNote.isEncrypted}
+                  isPinned={activeNote.isPinned}
+                  glossaryTerms={glossaryTerms}
+                  grammarErrors={grammarErrors}
+                  onFixGrammarError={handleFixSingleError}
+                  createdAt={activeNote.createdAt}
+                  updatedAt={activeNote.updatedAt}
+                  createdBy={activeNote.createdBy}
+                  updateNote={updateNote}
+                />
+              )
+            ) : (
+              <div className="h-full flex items-center justify-center">
+                <div className="text-center animate-fade-in max-w-md">
+                  <div className="w-20 h-20 mx-auto mb-5 bg-gradient-to-br from-[#6366F1] to-[#8B5CF6] rounded-2xl flex items-center justify-center shadow-2xl shadow-indigo-500/20">
+                    <Sparkles className="text-white" size={36} />
                   </div>
-                ) : (
-                  <div className="space-y-2">
-                    {aiPanel.data.map((error, i) => (
-                      <div
-                        key={i}
-                        className="border-l-4 border-red-400 pl-3 bg-red-50 p-2 rounded text-sm"
-                      >
-                        <p className="text-red-600 font-medium">
-                          ❌ {error.error}
-                        </p>
-                        <p className="text-green-600 mt-1">
-                          ✓ {error.suggestion}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                  <h3 className="text-xl font-bold text-[#171717] dark:text-[#FAFAFA] mb-2">No note selected</h3>
+                  <p className="text-sm text-[#737373] dark:text-[#737373] mb-5">Create or select a note to get started</p>
+                  <button onClick={createNote} className="btn-primary">
+                    <Plus size={18} />
+                    Create Note
+                  </button>
+                </div>
               </div>
             )}
           </div>
-        )}
+        </div>
       </div>
 
-      {/* Loading Overlay */}
       {loading && (
-        <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-lg shadow-xl flex items-center gap-3">
-            <Loader2 className="animate-spin text-primary-600" size={24} />
-            <span className="font-medium">Processing with AI...</span>
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-md flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-[#171717] px-8 py-5 rounded-2xl shadow-2xl flex items-center gap-4 border border-[#E5E5E5] dark:border-[#262626]">
+            <Loader2 className="animate-spin text-[#6366F1]" size={24} />
+            <p className="font-semibold text-[#171717] dark:text-[#FAFAFA] text-sm">Processing...</p>
           </div>
         </div>
       )}
 
-      {/* Password Modal */}
       {showPasswordModal && (
         <PasswordProtection
           mode={passwordMode}
@@ -624,6 +689,13 @@ function App() {
             setShowPasswordModal(false);
             setPendingEncryptionNoteId(null);
           }}
+        />
+      )}
+
+      {showExportMenu && activeNote && (
+        <ExportMenu
+          note={activeNote}
+          onClose={() => setShowExportMenu(false)}
         />
       )}
     </div>

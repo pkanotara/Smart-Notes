@@ -1,39 +1,83 @@
-export const execCommand = (command, value = null) => {
-  document.execCommand(command, false, value);
+export const formatBold = () => {
+  document.execCommand('bold', false, null);
 };
 
-export const formatBold = () => execCommand('bold');
-export const formatItalic = () => execCommand('italic');
-export const formatUnderline = () => execCommand('underline');
-
-export const alignLeft = () => execCommand('justifyLeft');
-export const alignCenter = () => execCommand('justifyCenter');
-export const alignRight = () => execCommand('justifyRight');
-
-export const setFontSize = (size) => execCommand('fontSize', size);
-
-export const insertOrderedList = () => execCommand('insertOrderedList');
-export const insertUnorderedList = () => execCommand('insertUnorderedList');
-
-export const setForeColor = (color) => execCommand('foreColor', color);
-export const setBackColor = (color) => execCommand('backColor', color);
-
-export const getSelection = () => {
-  return window.getSelection();
+export const formatItalic = () => {
+  document.execCommand('italic', false, null);
 };
 
-export const saveSelection = () => {
+export const formatUnderline = () => {
+  document.execCommand('underline', false, null);
+};
+
+export const alignLeft = () => {
+  document.execCommand('justifyLeft', false, null);
+};
+
+export const alignCenter = () => {
+  document.execCommand('justifyCenter', false, null);
+};
+
+export const alignRight = () => {
+  document.execCommand('justifyRight', false, null);
+};
+
+export const setFontSize = (size) => {
+  // First, select the current text or position
   const selection = window.getSelection();
-  if (selection.rangeCount > 0) {
-    return selection.getRangeAt(0);
+  
+  if (!selection.rangeCount) return;
+  
+  // Remove existing font size formatting
+  document.execCommand('removeFormat', false, null);
+  
+  // Apply new font size based on selection
+  let fontSize;
+  switch (size) {
+    case 'small':
+      fontSize = '14px';
+      break;
+    case 'normal':
+      fontSize = '16px';
+      break;
+    case 'large':
+      fontSize = '20px';
+      break;
+    case 'huge':
+      fontSize = '28px';
+      break;
+    default:
+      fontSize = '16px';
   }
-  return null;
-};
-
-export const restoreSelection = (range) => {
-  if (range) {
-    const selection = window.getSelection();
-    selection.removeAllRanges();
-    selection.addRange(range);
+  
+  // If there's selected text, wrap it in a span with the font size
+  if (selection.toString().length > 0) {
+    const range = selection.getRangeAt(0);
+    const span = document.createElement('span');
+    span.style.fontSize = fontSize;
+    
+    try {
+      range.surroundContents(span);
+    } catch (e) {
+      // If surroundContents fails, use execCommand as fallback
+      document.execCommand('fontSize', false, '7');
+      const fontElements = document.getElementsByTagName('font');
+      for (let i = 0; i < fontElements.length; i++) {
+        if (fontElements[i].size === '7') {
+          fontElements[i].removeAttribute('size');
+          fontElements[i].style.fontSize = fontSize;
+        }
+      }
+    }
+  } else {
+    // If no text is selected, apply to the current position
+    document.execCommand('fontSize', false, '7');
+    const fontElements = document.getElementsByTagName('font');
+    for (let i = 0; i < fontElements.length; i++) {
+      if (fontElements[i].size === '7') {
+        fontElements[i].removeAttribute('size');
+        fontElements[i].style.fontSize = fontSize;
+      }
+    }
   }
 };

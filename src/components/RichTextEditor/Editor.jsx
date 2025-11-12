@@ -1,17 +1,25 @@
 import React, { useRef, useEffect, useState } from 'react';
 import Toolbar from './Toolbar';
+import AIFloatingMenu from '../AIFloatingMenu/AIFloatingMenu';
 import {
   formatBold, formatItalic, formatUnderline,
-  alignLeft, alignCenter, alignRight, setFontSize
+  alignLeft, alignCenter, alignRight
 } from './EditorCommands';
-import { Edit2 } from 'lucide-react';
+import { Edit2, CheckCircle, Clock, User, Unlock } from 'lucide-react';
+import { storageService } from '../../services/storageService';
 
 const Editor = ({
   content, onChange, onSave, onDelete,
   onAISummary, onAITags, onGlossary, onGrammarCheck,
   onToggleEncryption, onTogglePin,
   isEncrypted, isPinned, glossaryTerms, noteId,
-  title, onTitleChange
+  title, onTitleChange,
+  grammarErrors = [],
+  onFixGrammarError,
+  createdAt,
+  updatedAt,
+  createdBy,
+  updateNote
 }) => {
   const editorRef = useRef(null);
   const titleRef = useRef(null);
@@ -19,28 +27,169 @@ const Editor = ({
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [localTitle, setLocalTitle] = useState(title);
   const isUpdatingRef = useRef(false);
-  const [isHighlighting, setIsHighlighting] = useState(false);
+  const [activeTooltip, setActiveTooltip] = useState(null);
+  const hideTimeoutRef = useRef(null);
+  const lastGrammarErrorsRef = useRef([]);
+  const lastGlossaryTermsRef = useRef([]);
+  const contentRef = useRef(content);
+  const isHighlightingRef = useRef(false);
+  const [showTimestampTooltip, setShowTimestampTooltip] = useState(false);
+  
+  // Get fontSize from note data
+  const [currentFontSize, setCurrentFontSize] = useState('normal');
 
   useEffect(() => {
     setLocalTitle(title);
   }, [title, noteId]);
 
+  // Sync font size when note changes
   useEffect(() => {
-    if (editorRef.current && !isUpdatingRef.current && !isEncrypted && !isHighlighting) {
-      const currentHTML = editorRef.current.innerHTML;
-      
-      if (currentHTML !== content) {
-        console.log('📝 Updating editor content for note:', noteId);
-        editorRef.current.innerHTML = content;
-      }
+    // Get the active note's fontSize from localStorage
+    const notes = storageService.loadNotes();
+    const activeNote = notes.find(n => n.id === noteId);
+    const savedFontSize = activeNote?.fontSize || 'normal';
+    setCurrentFontSize(savedFontSize);
+    
+    // Apply the font size class to editor
+    if (editorRef.current) {
+      editorRef.current.className = editorRef.current.className.replace(/font-size-\w+/g, '');
+      editorRef.current.classList.add(`font-size-${savedFontSize}`);
     }
-  }, [content, noteId, isEncrypted, isHighlighting]);
+  }, [noteId]);
 
   useEffect(() => {
-    if (glossaryTerms && glossaryTerms.length > 0 && !isEncrypted) {
-      highlightGlossaryTerms();
+    if (!editorRef.current || isUpdatingRef.current || isEncrypted || isHighlightingRef.current) return;
+    
+    const currentHTML = editorRef.current.innerHTML;
+    
+    if (grammarErrors.length > 0 || glossaryTerms.length > 0) {
+      if (!currentHTML || currentHTML === '<p><br></p>' || currentHTML === '') {
+        editorRef.current.innerHTML = content;
+        contentRef.current = content;
+      }
+      return;
+    }
+    
+    const cleanCurrent = currentHTML
+      .replace(/<span class="grammar-error"[^>]*>(.*?)<\/span>/gi, '$1')
+      .replace(/<span class="glossary-highlight"[^>]*>(.*?)<\/span>/gi, '$1');
+    
+    const cleanContent = content
+      .replace(/<span class="grammar-error"[^>]*>(.*?)<\/span>/gi, '$1')
+      .replace(/<span class="glossary-highlight"[^>]*>(.*?)<\/span>/gi, '$1');
+    
+    if (cleanContent && cleanContent !== cleanCurrent) {
+      editorRef.current.innerHTML = content;
+      contentRef.current = content;
+    }
+  }, [content, noteId, isEncrypted]);
+
+  useEffect(() => {
+    const termsChanged = JSON.stringify(glossaryTerms) !== JSON.stringify(lastGlossaryTermsRef.current);
+    
+    if (glossaryTerms && glossaryTerms.length > 0 && termsChanged && !isEncrypted && editorRef.current) {
+      lastGlossaryTermsRef.current = [...glossaryTerms];
+      if (grammarErrors.length > 0) {
+        lastGrammarErrorsRef.current = [];
+      }
+      isHighlightingRef.current = true;
+      requestAnimationFrame(() => {
+        highlightGlossaryTerms();
+        setTimeout(() => {
+          isHighlightingRef.current = false;
+        }, 200);
+      });
+    } else if (glossaryTerms.length === 0 && lastGlossaryTermsRef.current.length > 0) {
+      lastGlossaryTermsRef.current = [];
+      isHighlightingRef.current = true;
+      removeAllGlossaryHighlights();
+      setTimeout(() => {
+        isHighlightingRef.current = false;
+      }, 100);
     }
   }, [glossaryTerms, isEncrypted]);
+
+  useEffect(() => {
+    const errorsChanged = JSON.stringify(grammarErrors) !== JSON.stringify(lastGrammarErrorsRef.current);
+    
+    if (grammarErrors.length > 0 && errorsChanged && !isEncrypted && editorRef.current) {
+      lastGrammarErrorsRef.current = [...grammarErrors];
+      if (glossaryTerms.length > 0) {
+        lastGlossaryTermsRef.current = [];
+      }
+      isHighlightingRef.current = true;
+      requestAnimationFrame(() => {
+        highlightGrammarErrors();
+        setTimeout(() => {
+          isHighlightingRef.current = false;
+        }, 200);
+      });
+    } else if (grammarErrors.length === 0 && lastGrammarErrorsRef.current.length > 0) {
+      lastGrammarErrorsRef.current = [];
+      isHighlightingRef.current = true;
+      removeAllGrammarHighlights();
+      setTimeout(() => {
+        isHighlightingRef.current = false;
+      }, 100);
+    }
+  }, [grammarErrors, isEncrypted]);
+
+  useEffect(() => {
+    const editor = editorRef.current;
+    if (!editor || grammarErrors.length === 0) return;
+
+    const handleInteraction = (e) => {
+      const target = e.target;
+      if (target.classList && target.classList.contains('grammar-error')) {
+        e.stopPropagation();
+        if (hideTimeoutRef.current) {
+          clearTimeout(hideTimeoutRef.current);
+        }
+        const error = target.getAttribute('data-error');
+        const suggestion = target.getAttribute('data-suggestion');
+        if (error && suggestion) {
+          const rect = target.getBoundingClientRect();
+          setActiveTooltip({
+            error,
+            suggestion,
+            position: { x: rect.left + rect.width / 2, y: rect.top }
+          });
+        }
+      }
+    };
+
+    const handleMouseOut = (e) => {
+      const target = e.target;
+      if (target.classList && target.classList.contains('grammar-error')) {
+        if (window.innerWidth > 768) {
+          hideTimeoutRef.current = setTimeout(() => {
+            setActiveTooltip(null);
+          }, 300);
+        }
+      }
+    };
+
+    editor.addEventListener('mouseover', handleInteraction);
+    editor.addEventListener('click', handleInteraction);
+    editor.addEventListener('mouseout', handleMouseOut);
+
+    return () => {
+      editor.removeEventListener('mouseover', handleInteraction);
+      editor.removeEventListener('click', handleInteraction);
+      editor.removeEventListener('mouseout', handleMouseOut);
+    };
+  }, [grammarErrors]);
+
+  useEffect(() => {
+    if (!activeTooltip) return;
+    const handleClickOutside = (e) => {
+      if (!e.target.closest('.grammar-error') && !e.target.closest('.fixed.z-50')) {
+        setActiveTooltip(null);
+      }
+    };
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, [activeTooltip]);
 
   useEffect(() => {
     const handleSelectionChange = () => {
@@ -48,7 +197,6 @@ const Editor = ({
         setSelectionInfo('');
         return;
       }
-      
       const selection = window.getSelection();
       const selectedText = selection?.toString().trim();
       if (selectedText && selectedText.length > 0) {
@@ -57,21 +205,22 @@ const Editor = ({
         setSelectionInfo('');
       }
     };
-
     document.addEventListener('selectionchange', handleSelectionChange);
     return () => document.removeEventListener('selectionchange', handleSelectionChange);
   }, [isEncrypted]);
 
   const handleInput = (e) => {
-    if (isEncrypted) return;
-    
+    if (isEncrypted || isHighlightingRef.current) return;
     isUpdatingRef.current = true;
     const newContent = e.target.innerHTML;
-    onChange(newContent);
-    
+    contentRef.current = newContent;
+    const cleanContent = newContent
+      .replace(/<span class="grammar-error"[^>]*>(.*?)<\/span>/gi, '$1')
+      .replace(/<span class="glossary-highlight"[^>]*>(.*?)<\/span>/gi, '$1');
+    onChange(cleanContent);
     setTimeout(() => {
       isUpdatingRef.current = false;
-    }, 50);
+    }, 100);
   };
 
   const handleTitleEdit = () => {
@@ -105,218 +254,386 @@ const Editor = ({
     }
   };
 
-  const highlightGlossaryTerms = () => {
-    if (!editorRef.current || !glossaryTerms || isEncrypted) return;
-
-    setIsHighlighting(true);
+  // Handle font size change for entire note
+  const handleFontSizeChange = (size) => {
+    setCurrentFontSize(size);
+    // Save font size to the note
+    if (updateNote) {
+      updateNote({ fontSize: size });
+    }
     
-    try {
-      const selection = window.getSelection();
-      const range = selection.rangeCount > 0 ? selection.getRangeAt(0) : null;
-      
-      let html = editorRef.current.innerHTML;
-      
-      glossaryTerms.forEach(({ term, definition }) => {
-        const escapedTerm = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        const regex = new RegExp(`(?<![<>])\\b(${escapedTerm})\\b(?![^<]*>)`, 'gi');
-        
-        html = html.replace(regex, (match) => {
-          if (html.includes(`glossary-highlight" data-definition="${definition}">${match}`)) {
-            return match;
-          }
-          return `<span class="glossary-highlight" data-definition="${definition}" title="${definition}">${match}</span>`;
-        });
-      });
-
-      editorRef.current.innerHTML = html;
-      
-      if (range) {
-        try {
-          selection.removeAllRanges();
-          selection.addRange(range);
-        } catch (e) {
-          // Ignore
-        }
-      }
-    } catch (error) {
-      console.error('Error highlighting glossary terms:', error);
-    } finally {
-      setTimeout(() => {
-        setIsHighlighting(false);
-      }, 100);
+    if (editorRef.current) {
+      // Apply font size class to editor
+      editorRef.current.className = editorRef.current.className.replace(/font-size-\w+/g, '');
+      editorRef.current.classList.add(`font-size-${size}`);
     }
   };
 
-  const handleMouseOver = (e) => {
-    if (e.target.classList.contains('glossary-highlight')) {
-      const definition = e.target.getAttribute('data-definition');
-      if (definition) {
-        e.target.setAttribute('title', definition);
+  const highlightGlossaryTerms = () => {
+    if (!editorRef.current) return;
+    try {
+      let html = editorRef.current.innerHTML || contentRef.current || content;
+      if (!html || html === '<p><br></p>') {
+        html = content;
       }
+      html = html.replace(/<span class="glossary-highlight"[^>]*>(.*?)<\/span>/gi, '$1');
+      html = html.replace(/<span class="grammar-error"[^>]*>(.*?)<\/span>/gi, '$1');
+      glossaryTerms.forEach(({ term, definition }) => {
+        const escapedTerm = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const regex = new RegExp(`\\b(${escapedTerm})\\b(?![^<]*>)`, 'gi');
+        html = html.replace(regex, (match) => {
+          return `<span class="glossary-highlight" data-definition="${definition.replace(/"/g, '&quot;')}" title="${definition}">${match}</span>`;
+        });
+      });
+      editorRef.current.innerHTML = html;
+      contentRef.current = html;
+    } catch (error) {
+      console.error('Error highlighting glossary terms:', error);
+      if (content) {
+        editorRef.current.innerHTML = content;
+      }
+    }
+  };
+
+  const highlightGrammarErrors = () => {
+    if (!editorRef.current || !grammarErrors || grammarErrors.length === 0) return;
+    try {
+      let html = editorRef.current.innerHTML || contentRef.current || content;
+      if (!html || html === '<p><br></p>') {
+        html = content;
+      }
+      html = html.replace(/<span class="grammar-error"[^>]*>(.*?)<\/span>/gi, '$1');
+      html = html.replace(/<span class="glossary-highlight"[^>]*>(.*?)<\/span>/gi, '$1');
+      const sortedErrors = [...grammarErrors].sort((a, b) => b.error.length - a.error.length);
+      sortedErrors.forEach(({ error, suggestion }) => {
+        const escapedError = error.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const safeSuggestion = suggestion.replace(/"/g, '&quot;');
+        const regex = new RegExp(`(?<!<[^>]*)(${escapedError})(?![^<]*>)`, 'gi');
+        html = html.replace(regex, (match) => {
+          return `<span class="grammar-error" data-error="${error.replace(/"/g, '&quot;')}" data-suggestion="${safeSuggestion}">${match}</span>`;
+        });
+      });
+      editorRef.current.innerHTML = html;
+      contentRef.current = html;
+    } catch (error) {
+      console.error('Error highlighting grammar:', error);
+      if (content) {
+        editorRef.current.innerHTML = content;
+      }
+    }
+  };
+
+  const removeAllGrammarHighlights = () => {
+    if (!editorRef.current) return;
+    try {
+      let html = editorRef.current.innerHTML || contentRef.current;
+      html = html.replace(/<span class="grammar-error"[^>]*>(.*?)<\/span>/gi, '$1');
+      editorRef.current.innerHTML = html;
+      contentRef.current = html;
+    } catch (error) {
+      console.error('Error removing grammar highlights:', error);
+    }
+  };
+
+  const removeAllGlossaryHighlights = () => {
+    if (!editorRef.current) return;
+    try {
+      let html = editorRef.current.innerHTML || contentRef.current;
+      html = html.replace(/<span class="glossary-highlight"[^>]*>(.*?)<\/span>/gi, '$1');
+      editorRef.current.innerHTML = html;
+      contentRef.current = html;
+    } catch (error) {
+      console.error('Error removing glossary highlights:', error);
+    }
+  };
+
+  const removeSingleErrorHighlight = (errorText) => {
+    if (!editorRef.current) return;
+    try {
+      const escapedError = errorText.replace(/"/g, '&quot;').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      let html = editorRef.current.innerHTML;
+      const regex = new RegExp(`<span class="grammar-error" data-error="${escapedError}"[^>]*>(.*?)<\\/span>`, 'g');
+      html = html.replace(regex, '$1');
+      editorRef.current.innerHTML = html;
+      contentRef.current = html;
+    } catch (error) {
+      console.error('Error removing single highlight:', error);
+    }
+  };
+
+  const handleFixError = () => {
+    if (!activeTooltip || !onFixGrammarError) return;
+    onFixGrammarError(activeTooltip.error, activeTooltip.suggestion);
+    removeSingleErrorHighlight(activeTooltip.error);
+    setActiveTooltip(null);
+  };
+
+  const handleTooltipMouseEnter = () => {
+    if (hideTimeoutRef.current) {
+      clearTimeout(hideTimeoutRef.current);
+    }
+  };
+
+  const handleTooltipMouseLeave = () => {
+    if (window.innerWidth > 768) {
+      setActiveTooltip(null);
     }
   };
 
   const getWordCount = () => {
     if (isEncrypted) {
-      return '🔒 Encrypted content';
+      return '🔒 Encrypted';
     }
-    
     const div = document.createElement('div');
     div.innerHTML = content;
     const text = div.textContent || '';
     const words = text.trim().split(/\s+/).filter(w => w.length > 0).length;
-    return `${words} words, ${text.length} characters`;
+    const chars = text.length;
+    return `${words} words · ${chars} characters`;
   };
 
-  // ✅ TITLE BAR COMPONENT
-  const TitleBar = () => (
-    <div className="border-b border-gray-200 p-4 bg-gray-50">
-      <div className="flex items-center justify-between">
-        {isEditingTitle ? (
-          <input
-            ref={titleRef}
-            type="text"
-            value={localTitle}
-            onChange={handleTitleChange}
-            onBlur={handleTitleBlur}
-            onKeyDown={handleTitleKeyDown}
-            className="text-2xl font-bold text-gray-800 bg-white border-2 border-primary-500 rounded px-2 py-1 flex-1 mr-2 outline-none"
-            placeholder="Note title..."
-          />
-        ) : (
-          <h2 className="text-2xl font-bold text-gray-800 flex-1 cursor-pointer hover:text-primary-600 transition-colors" onClick={handleTitleEdit}>
+  if (isEncrypted) {
+    return (
+      <div className="flex flex-col h-full card animate-fade-in">
+        <div className="px-6 sm:px-8 py-4">
+          <h2 
+            className="text-2xl sm:text-3xl font-bold text-[#171717] dark:text-[#FAFAFA] truncate" 
+            style={{ letterSpacing: '-0.02em' }}
+            title={localTitle}
+          >
             {localTitle}
           </h2>
-        )}
-        <button
-          onClick={handleTitleEdit}
-          className="p-2 hover:bg-gray-200 rounded transition-colors"
-          title="Edit title"
-        >
-          <Edit2 size={18} className="text-gray-600" />
-        </button>
-      </div>
-    </div>
-  );
+        </div>
 
-  // ✅ TOOLBAR COMPONENT
-  const ToolbarComponent = () => (
-    <Toolbar
-      onBold={formatBold}
-      onItalic={formatItalic}
-      onUnderline={formatUnderline}
-      onAlignLeft={alignLeft}
-      onAlignCenter={alignCenter}
-      onAlignRight={alignRight}
-      onFontSizeChange={setFontSize}
-      onAISummary={onAISummary}
-      onAITags={onAITags}
-      onGlossary={onGlossary}
-      onGrammarCheck={onGrammarCheck}
-      onToggleEncryption={onToggleEncryption}
-      onTogglePin={onTogglePin}
-      onSave={onSave}
-      onDelete={onDelete}
-      isEncrypted={isEncrypted}
-      isPinned={isPinned}
-    />
-  );
-
-  // ✅ ENCRYPTED VIEW - ABSOLUTELY NO EDITOR CONTENT
-  if (isEncrypted) {
-    console.log('🔒 Rendering ENCRYPTED view - no content should exist');
-    return (
-      <div className="flex flex-col h-full bg-white rounded-lg shadow-lg overflow-hidden">
-        <TitleBar />
-        <ToolbarComponent />
+        <Toolbar
+          onBold={() => {}}
+          onItalic={() => {}}
+          onUnderline={() => {}}
+          onAlignLeft={() => {}}
+          onAlignCenter={() => {}}
+          onAlignRight={() => {}}
+          onFontSizeChange={() => {}}
+          onToggleEncryption={onToggleEncryption}
+          onTogglePin={onTogglePin}
+          onDelete={onDelete}
+          isEncrypted={isEncrypted}
+          isPinned={isPinned}
+          currentFontSize={currentFontSize}
+        />
         
-        {/* FULL HEIGHT LOCK SCREEN */}
-        <div 
-          className="flex-1 flex items-center justify-center p-6"
-          style={{
-            background: 'linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%)',
-            minHeight: '400px'
-          }}
-        >
-          <div className="text-center text-gray-600 max-w-md w-full">
-            <div className="mb-8">
-              <div className="w-32 h-32 mx-auto bg-gradient-to-br from-yellow-400 to-orange-500 rounded-3xl flex items-center justify-center shadow-2xl transform rotate-3 hover:rotate-6 transition-all duration-300">
-                <svg className="w-20 h-20 text-white" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
-                </svg>
-              </div>
+        <div className="flex-1 flex items-center justify-center p-8">
+          <div className="text-center max-w-md animate-slide-up">
+            <div className="w-24 h-24 mx-auto mb-6 bg-gradient-to-br from-amber-400 to-orange-500 rounded-3xl flex items-center justify-center shadow-2xl shadow-amber-500/20">
+              <svg className="w-14 h-14 text-white" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+              </svg>
             </div>
             
-            <h3 className="text-3xl font-bold text-gray-800 mb-4">
+            <h3 className="text-2xl font-bold text-[#171717] dark:text-[#FAFAFA] mb-3" style={{ letterSpacing: '-0.02em' }}>
               This note is encrypted
             </h3>
             
-            <p className="text-base text-gray-600 mb-8 leading-relaxed">
-              Click the <span className="inline-flex items-center mx-1">
-                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
-                </svg>
-              </span> lock icon in the toolbar to decrypt and view the content
+            <p className="text-sm text-[#737373] dark:text-[#A3A3A3] mb-6 leading-relaxed">
+              Enter your password to unlock and view this note
             </p>
             
-            <div className="bg-white border-2 border-gray-200 rounded-xl p-5 shadow-md">
-              <div className="flex items-center justify-center gap-2 mb-2">
-                <span className="text-2xl">🔐</span>
-                <p className="font-semibold text-gray-800">Your content is secure</p>
-              </div>
-              <p className="text-sm text-gray-500">Protected with AES-256 encryption</p>
+            {/* Prominent Unlock Button */}
+            <button
+              onClick={onToggleEncryption}
+              className="w-full flex items-center justify-center gap-3 px-6 py-4 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white text-base font-bold rounded-2xl transition-all duration-200 shadow-2xl shadow-amber-500/30 hover:shadow-amber-500/50 active:scale-[0.98] mb-6"
+            >
+              <Unlock size={22} />
+              <span>Unlock Note</span>
+            </button>
+            
+            <div className="bg-[#F5F5F5] dark:bg-[#1A1A1A] border border-[#E5E5E5] dark:border-[#262626] rounded-xl p-4">
+              <p className="text-xs font-bold text-[#171717] dark:text-[#FAFAFA] mb-1">
+                🔐 AES-256 Encrypted
+              </p>
+              <p className="text-xs text-[#737373] dark:text-[#A3A3A3]">
+                Military-grade security
+              </p>
             </div>
           </div>
         </div>
         
-        <div className="border-t border-gray-200 px-4 py-2 text-xs text-gray-500 flex justify-between items-center">
-          <span>🔒 Encrypted content</span>
-          <span className="flex items-center gap-1 text-green-600 font-medium">
-            <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
-            </svg>
-            Encrypted
-          </span>
+        <div className="px-6 sm:px-8 py-3 border-t border-[#E5E5E5] dark:border-[#1F1F1F] text-xs text-[#A3A3A3] dark:text-[#525252] flex justify-between items-center font-medium">
+          <span>🔒 Encrypted</span>
+          <span className="text-green-600 dark:text-green-500 font-semibold">Protected</span>
         </div>
       </div>
     );
   }
 
-  // ✅ NORMAL VIEW - EDITOR ONLY WHEN NOT ENCRYPTED
-  console.log('📝 Rendering NORMAL view - editor content exists');
   return (
-    <div className="flex flex-col h-full bg-white rounded-lg shadow-lg overflow-hidden">
-      <TitleBar />
-      <ToolbarComponent />
+    <div className="flex flex-col h-full card animate-fade-in relative">
+      {/* Title with Timestamp */}
+      <div className="px-6 sm:px-8 py-4 border-b border-[#E5E5E5] dark:border-[#1F1F1F]">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+          <div className="flex items-center gap-3 flex-1 min-w-0">
+            {isEditingTitle ? (
+              <input
+                ref={titleRef}
+                type="text"
+                value={localTitle}
+                onChange={handleTitleChange}
+                onBlur={handleTitleBlur}
+                onKeyDown={handleTitleKeyDown}
+                className="flex-1 text-2xl sm:text-3xl font-bold bg-transparent border-none outline-none text-[#171717] dark:text-[#FAFAFA]"
+                placeholder="Untitled"
+                style={{ letterSpacing: '-0.02em' }}
+              />
+            ) : (
+              <h2 
+                onClick={handleTitleEdit}
+                className="flex-1 text-2xl sm:text-3xl font-bold text-[#171717] dark:text-[#FAFAFA] cursor-text hover:text-[#525252] dark:hover:text-[#D4D4D4] transition-colors truncate"
+                style={{ letterSpacing: '-0.02em' }}
+                title={localTitle}
+              >
+                {localTitle}
+              </h2>
+            )}
+            <button
+              onClick={handleTitleEdit}
+              className="btn-icon flex-shrink-0 opacity-0 hover:opacity-100 transition-opacity hidden sm:block"
+              title="Edit title"
+            >
+              <Edit2 size={16} />
+            </button>
+          </div>
+        </div>
+        
+        {/* Timestamp Info */}
+        <div className="mt-3 flex flex-wrap items-center gap-4 text-xs text-[#A3A3A3] dark:text-[#525252] font-medium">
+          <div 
+            className="flex items-center gap-1.5 relative cursor-help"
+            onMouseEnter={() => setShowTimestampTooltip(true)}
+            onMouseLeave={() => setShowTimestampTooltip(false)}
+          >
+            <Clock size={12} />
+            <span>{storageService.formatTimestamp(updatedAt)}</span>
+            
+            {showTimestampTooltip && (
+              <div className="hidden sm:block absolute bottom-full left-0 mb-2 bg-[#171717] dark:bg-[#FAFAFA] text-white dark:text-[#171717] px-3 py-2 rounded-lg text-xs whitespace-nowrap shadow-xl z-10">
+                <div className="space-y-1">
+                  <div><strong>Created:</strong> {storageService.getFullTimestamp(createdAt)}</div>
+                  <div><strong>Modified:</strong> {storageService.getFullTimestamp(updatedAt)}</div>
+                </div>
+                <div className="absolute top-full left-4 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-[#171717] dark:border-t-[#FAFAFA]"></div>
+              </div>
+            )}
+          </div>
+          
+          {createdBy && (
+            <div className="flex items-center gap-1.5">
+              <User size={12} />
+              <span>@{createdBy}</span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <Toolbar
+        onBold={formatBold}
+        onItalic={formatItalic}
+        onUnderline={formatUnderline}
+        onAlignLeft={alignLeft}
+        onAlignCenter={alignCenter}
+        onAlignRight={alignRight}
+        onFontSizeChange={handleFontSizeChange}
+        onToggleEncryption={onToggleEncryption}
+        onTogglePin={onTogglePin}
+        onDelete={onDelete}
+        isEncrypted={isEncrypted}
+        isPinned={isPinned}
+        currentFontSize={currentFontSize}
+      />
       
       {selectionInfo && (
-        <div className="bg-blue-50 border-b border-blue-200 px-4 py-2 text-xs text-blue-700">
-          ✓ {selectionInfo} - AI features will analyze selected text
+        <div className="px-6 sm:px-8 py-2 bg-[#6366F1]/5 dark:bg-[#6366F1]/10 border-b border-[#E5E5E5] dark:border-[#1F1F1F] text-xs text-[#6366F1] font-semibold">
+          ✓ {selectionInfo}
         </div>
       )}
       
-      {/* EDITOR - ONLY RENDERED WHEN NOT ENCRYPTED */}
+      {grammarErrors.length > 0 && (
+        <div className="px-6 sm:px-8 py-2 bg-amber-50 dark:bg-amber-900/10 border-b border-amber-200 dark:border-amber-800/20 text-xs font-semibold flex items-center gap-2">
+          <CheckCircle size={12} className="text-amber-600 dark:text-amber-500 flex-shrink-0" />
+          <span className="text-amber-800 dark:text-amber-400">
+            {grammarErrors.length} {grammarErrors.length === 1 ? 'error' : 'errors'}
+          </span>
+          <span className="hidden sm:inline text-amber-600 dark:text-amber-500 text-xs">• Click to fix</span>
+        </div>
+      )}
+      
       <div
         ref={editorRef}
         contentEditable={true}
         onInput={handleInput}
-        onMouseOver={handleMouseOver}
-        className="flex-1 p-6 outline-none overflow-auto prose max-w-none focus:ring-2 focus:ring-primary-200"
-        style={{ minHeight: '400px' }}
+        className={`flex-1 px-6 sm:px-8 py-6 outline-none overflow-auto prose bg-white dark:bg-[#0A0A0A] font-size-${currentFontSize}`}
+        style={{ minHeight: '300px', caretColor: 'currentColor' }}
         suppressContentEditableWarning
       />
+
+      {activeTooltip && (
+        <>
+          <div 
+            className="fixed inset-0 z-40 md:hidden"
+            onClick={() => setActiveTooltip(null)}
+          />
+          
+          <div 
+            className="fixed z-50 bg-white dark:bg-[#171717] border-2 border-[#6366F1] rounded-xl shadow-2xl p-4 pointer-events-auto"
+            style={{
+              left: `${activeTooltip.position.x}px`,
+              top: `${activeTooltip.position.y}px`,
+              transform: 'translate(-50%, calc(-100% - 10px))',
+              maxWidth: '90vw',
+              width: '300px'
+            }}
+            onMouseEnter={handleTooltipMouseEnter}
+            onMouseLeave={handleTooltipMouseLeave}
+          >
+            <div className="space-y-3">
+              <div className="flex items-start gap-2">
+                <span className="text-red-500 flex-shrink-0 mt-0.5 font-bold">✕</span>
+                <p className="text-xs text-red-700 dark:text-red-400 font-semibold leading-relaxed">{activeTooltip.error}</p>
+              </div>
+              <div className="flex items-start gap-2 pt-2 border-t border-[#E5E5E5] dark:border-[#262626]">
+                <span className="text-green-500 flex-shrink-0 mt-0.5 font-bold">✓</span>
+                <p className="text-xs text-green-700 dark:text-green-400 font-semibold leading-relaxed">{activeTooltip.suggestion}</p>
+              </div>
+              <button
+                onClick={handleFixError}
+                className="w-full mt-2 flex items-center justify-center gap-2 px-4 py-2.5 bg-[#6366F1] hover:bg-[#5558E3] text-white text-xs font-bold rounded-lg transition-all active:scale-95 shadow-lg"
+              >
+                <CheckCircle size={14} />
+                Fix This Error
+              </button>
+            </div>
+          </div>
+        </>
+      )}
       
-      <div className="border-t border-gray-200 px-4 py-2 text-xs text-gray-500 flex justify-between items-center">
-        <span>{getWordCount()}</span>
+      <div className="px-6 sm:px-8 py-3 border-t border-[#E5E5E5] dark:border-[#1F1F1F] text-xs text-[#A3A3A3] dark:text-[#525252] flex justify-between items-center font-medium">
+        <span className="truncate">{getWordCount()}</span>
         {isPinned && (
-          <span className="flex items-center gap-1 text-primary-600 font-medium">
+          <span className="text-[#6366F1] font-semibold flex items-center gap-1 flex-shrink-0 ml-2">
             <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
               <path d="M10 2a1 1 0 011 1v1.323l3.954 1.582 1.599-.8a1 1 0 01.894 1.79l-1.233.616 1.738 5.42a1 1 0 01-.285 1.05A3.989 3.989 0 0115 15a3.989 3.989 0 01-2.667-1.019 1 1 0 01-.285-1.05l1.715-5.349L11 6.477V16h2a1 1 0 110 2H7a1 1 0 110-2h2V6.477L6.237 7.582l1.715 5.349a1 1 0 01-.285 1.05A3.989 3.989 0 015 15a3.989 3.989 0 01-2.667-1.019 1 1 0 01-.285-1.05l1.738-5.42-1.233-.617a1 1 0 01.894-1.788l1.599.799L9 4.323V3a1 1 0 011-1z" />
             </svg>
-            Pinned
+            <span className="hidden sm:inline">Pinned</span>
           </span>
         )}
       </div>
+
+      {/* AI Floating Menu */}
+      <AIFloatingMenu
+        onAISummary={onAISummary}
+        onAITags={onAITags}
+        onGlossary={onGlossary}
+        onGrammarCheck={onGrammarCheck}
+        isEncrypted={isEncrypted}
+      />
     </div>
   );
 };

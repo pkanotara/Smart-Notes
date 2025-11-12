@@ -1,204 +1,220 @@
-const GROQ_API_KEY = import.meta.env.VITE_GROQ_API_KEY || '';
-const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
+import Groq from "groq-sdk";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
-export const aiService = {
-  async callGroq(prompt, systemPrompt = 'You are a helpful assistant.') {
-    if (!GROQ_API_KEY) {
-      throw new Error('❌ Groq API key not found!\n\n1. Create .env file in project root\n2. Add: VITE_GROQ_API_KEY=your_key\n3. Restart dev server (npm run dev)');
-    }
+// API Configuration
+const GROQ_KEYS = [
+  import.meta.env.VITE_GROQ_API_KEY_PRIMARY,
+  import.meta.env.VITE_GROQ_API_KEY_SECONDARY,
+].filter(Boolean);
 
-    console.log('🚀 Calling Groq API...');
+const GEMINI_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 
+let currentKeyIndex = 0;
+let genAI = null;
+
+if (GEMINI_KEY) {
+  genAI = new GoogleGenerativeAI(GEMINI_KEY);
+}
+
+const getGroqClient = () => {
+  if (GROQ_KEYS.length === 0) return null;
+  return new Groq({
+    apiKey: GROQ_KEYS[currentKeyIndex],
+    dangerouslyAllowBrowser: true
+  });
+};
+
+const makeFastRequest = async (systemPrompt, userPrompt) => {
+  console.log(`🚀 Making request...`);
+  
+  // Try current Groq key first
+  if (GROQ_KEYS.length > 0) {
     try {
-      const response = await fetch(GROQ_API_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${GROQ_API_KEY}`,
-        },
-        body: JSON.stringify({
-          model: 'llama-3.3-70b-versatile',  // ✅ UPDATED MODEL
+      const groq = getGroqClient();
+      console.log(`Trying Groq key ${currentKeyIndex + 1}/${GROQ_KEYS.length}`);
+      
+      const completion = await Promise.race([
+        groq.chat.completions.create({
           messages: [
-            { role: 'system', content: systemPrompt },
-            { role: 'user', content: prompt },
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userPrompt }
           ],
-          temperature: 0.5,
-          max_tokens: 1024,
-          top_p: 1,
-          stream: false,
+          model: "llama-3.3-70b-versatile",
+          temperature: 0.3,
+          max_tokens: 512,
         }),
-      });
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Timeout')), 10000)
+        )
+      ]);
 
-      console.log('📡 Response status:', response.status);
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        console.error('❌ Groq API Error:', errorData);
+      const result = completion.choices[0]?.message?.content || "";
+      console.log('✅ Groq success');
+      return result;
+      
+    } catch (error) {
+      console.warn(`⚠️ Groq failed: ${error.message}`);
+      
+      // Try next Groq key if available
+      if (GROQ_KEYS.length > 1) {
+        currentKeyIndex = (currentKeyIndex + 1) % GROQ_KEYS.length;
+        console.log(`🔄 Trying next Groq key...`);
         
-        if (response.status === 401) {
-          throw new Error('Invalid API key. Please check your Groq API key at console.groq.com');
-        } else if (response.status === 429) {
-          throw new Error('Rate limit exceeded. Please wait a moment and try again.');
-        } else if (response.status === 400) {
-          throw new Error(`Bad request: ${errorData.error?.message || 'Check your API setup'}`);
-        } else {
-          throw new Error(`API error ${response.status}: ${errorData.error?.message || 'Unknown error'}`);
+        try {
+          const groq = getGroqClient();
+          const completion = await groq.chat.completions.create({
+            messages: [
+              { role: "system", content: systemPrompt },
+              { role: "user", content: userPrompt }
+            ],
+            model: "llama-3.3-70b-versatile",
+            temperature: 0.3,
+            max_tokens: 512,
+          });
+
+          const result = completion.choices[0]?.message?.content || "";
+          console.log('✅ Groq success (key 2)');
+          return result;
+        } catch (error2) {
+          console.warn(`⚠️ Second Groq key also failed`);
         }
       }
-
-      const data = await response.json();
-      console.log('✅ API Success');
+    }
+  }
+  
+  // Fallback to Gemini
+  if (genAI) {
+    try {
+      console.log('🔄 Trying Gemini...');
+      const model = genAI.getGenerativeModel({ 
+        model: "gemini-1.5-flash",
+        generationConfig: {
+          temperature: 0.3,
+          maxOutputTokens: 512,
+        }
+      });
       
-      const result = data.choices[0]?.message?.content || '';
-      if (!result) {
-        throw new Error('Empty response from API');
-      }
+      const prompt = `${systemPrompt}\n\n${userPrompt}`;
+      const result = await model.generateContent(prompt);
+      const response = await result.response;
+      const text = response.text();
+      
+      console.log('✅ Gemini success');
+      return text;
+    } catch (error) {
+      console.error('❌ Gemini failed:', error.message);
+    }
+  }
+  
+  throw new Error('All API services are unavailable. Please try again.');
+};
+
+export const aiService = {
+  async summarizeNote(content) {
+    try {
+      const limitedContent = content.substring(0, 3000);
+      
+      const result = await makeFastRequest(
+        "Create a brief 2-3 sentence summary.",
+        `Summarize: ${limitedContent}`
+      );
       
       return result;
     } catch (error) {
-      console.error('💥 Groq API error:', error);
-      throw error;
+      console.error('Summary Error:', error);
+      throw new Error('Could not generate summary. Please try again.');
     }
   },
 
-  async identifyGlossaryTerms(text) {
-    if (!text || text.trim().length < 20) {
-      throw new Error('Text too short for glossary analysis (minimum 20 characters)');
-    }
-
-    const cleanText = text.substring(0, 1000);
-    const prompt = `Identify 5-8 important terms from this text and provide brief definitions.
-
-Text: "${cleanText}"
-
-Return ONLY a JSON array with this exact format, no other text:
-[{"term": "example", "definition": "brief explanation"}]`;
-
+  async suggestTags(content) {
     try {
-      const response = await this.callGroq(prompt, 'You return only valid JSON arrays. No explanations, just JSON.');
+      const limitedContent = content.substring(0, 1000);
       
-      console.log('Raw glossary response:', response);
+      const result = await makeFastRequest(
+        "Return ONLY 3-5 tags as comma-separated values. No explanations.",
+        `Generate tags for: ${limitedContent}`
+      );
       
-      const jsonMatch = response.match(/\[[\s\S]*\]/);
-      if (jsonMatch) {
-        const parsed = JSON.parse(jsonMatch[0]);
-        return Array.isArray(parsed) ? parsed.slice(0, 10) : [];
+      const tags = result
+        .split(',')
+        .map(tag => tag.trim().replace(/^[#"'\s]+|[#"'\s]+$/g, ''))
+        .filter(tag => tag.length > 0 && tag.length < 30)
+        .slice(0, 5);
+      
+      return tags.length > 0 ? tags : ['general', 'note'];
+    } catch (error) {
+      console.error('Tags Error:', error);
+      return ['general', 'note'];
+    }
+  },
+
+  async identifyGlossaryTerms(content) {
+    try {
+      const limitedContent = content.substring(0, 1500);
+      
+      const result = await makeFastRequest(
+        'Return ONLY a JSON array of 3-5 key terms: [{"term":"word","definition":"short meaning"}]. No markdown, no explanations.',
+        `Find key terms in: ${limitedContent}`
+      );
+      
+      try {
+        let jsonStr = result.trim();
+        jsonStr = jsonStr.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+        
+        const match = jsonStr.match(/\[[\s\S]*\]/);
+        if (match) {
+          const terms = JSON.parse(match[0]);
+          return terms
+            .filter(item => item.term && item.definition)
+            .map(item => ({
+              term: String(item.term).trim().slice(0, 50),
+              definition: String(item.definition).trim().slice(0, 150)
+            }))
+            .slice(0, 5);
+        }
+      } catch (e) {
+        console.error('Parse error:', e);
       }
       
-      const parsed = JSON.parse(response);
-      return Array.isArray(parsed) ? parsed.slice(0, 10) : [];
+      return [];
     } catch (error) {
-      console.error('Glossary parsing error:', error);
-      throw new Error('Failed to generate glossary terms. Try again with different content.');
-    }
-  },
-
-  async summarizeNote(text) {
-    if (!text || text.trim().length < 10) {
-      throw new Error('Text too short to summarize (minimum 10 characters)');
-    }
-
-    const cleanText = text.substring(0, 2000);
-    const prompt = `Summarize this text in exactly 1-2 clear, concise sentences:
-
-"${cleanText}"
-
-Summary:`;
-
-    try {
-      const summary = await this.callGroq(prompt, 'You create brief, accurate summaries in 1-2 sentences maximum.');
-      return summary.trim();
-    } catch (error) {
-      console.error('Summary error:', error);
-      throw error;
-    }
-  },
-
-  async suggestTags(text) {
-    if (!text || text.trim().length < 20) {
-      throw new Error('Text too short for tag suggestions (minimum 20 characters)');
-    }
-
-    const cleanText = text.substring(0, 1000);
-    const prompt = `Generate 3-5 relevant tags for this text.
-
-Text: "${cleanText}"
-
-Return ONLY a JSON array of strings, no other text:
-["tag1", "tag2", "tag3"]`;
-
-    try {
-      const response = await this.callGroq(prompt, 'You return only valid JSON arrays of strings.');
-      
-      console.log('Raw tags response:', response);
-      
-      const jsonMatch = response.match(/\[[\s\S]*?\]/);
-      if (jsonMatch) {
-        const parsed = JSON.parse(jsonMatch[0]);
-        return Array.isArray(parsed) ? parsed.slice(0, 5).map(t => String(t)) : [];
-      }
-
-      const parsed = JSON.parse(response);
-      return Array.isArray(parsed) ? parsed.slice(0, 5).map(t => String(t)) : [];
-    } catch (error) {
-      console.error('Tags parsing error:', error);
-      throw new Error('Failed to generate tags. Try again.');
-    }
-  },
-
-  async checkGrammar(text) {
-    if (!text || text.trim().length < 10) {
-      throw new Error('Text too short for grammar check (minimum 10 characters)');
-    }
-
-    const cleanText = text.substring(0, 1500);
-    const prompt = `Check this text for grammar errors.
-
-Text: "${cleanText}"
-
-Return ONLY a JSON array (max 5 errors). If no errors, return empty array [].
-Format: [{"error": "wrong text", "suggestion": "correction", "position": 0}]`;
-
-    try {
-      const response = await this.callGroq(prompt, 'You return only valid JSON. Empty array [] if no errors.');
-      
-      console.log('Raw grammar response:', response);
-      
-      const jsonMatch = response.match(/\[[\s\S]*?\]/);
-      if (jsonMatch) {
-        const parsed = JSON.parse(jsonMatch[0]);
-        return Array.isArray(parsed) ? parsed.slice(0, 5) : [];
-      }
-
-      const parsed = JSON.parse(response);
-      return Array.isArray(parsed) ? parsed.slice(0, 5) : [];
-    } catch (error) {
-      console.error('Grammar parsing error:', error);
+      console.error('Glossary Error:', error);
       return [];
     }
   },
 
-  async translateNote(text, targetLanguage) {
-    if (!text || text.trim().length < 5) {
-      throw new Error('Text is too short to translate.');
-    }
-
-    const cleanText = text.substring(0, 3000);
-    const prompt = `Translate this text to ${targetLanguage}. Preserve formatting and meaning:
-
-"${cleanText}"
-
-Translation:`;
-
+  async checkGrammar(content) {
     try {
-      const translation = await this.callGroq(
-        prompt,
-        `You are an expert translator. Translate accurately to ${targetLanguage}, maintaining the original tone and structure.`
+      const limitedContent = content.substring(0, 2000);
+      
+      const result = await makeFastRequest(
+        'Find grammar errors. Return ONLY JSON array: [{"error":"wrong","suggestion":"correct"}]. Max 10. If none: []',
+        `Check grammar: ${limitedContent}`
       );
-      return translation.trim();
+      
+      try {
+        let jsonStr = result.trim();
+        jsonStr = jsonStr.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+        
+        const match = jsonStr.match(/\[[\s\S]*\]/);
+        if (match) {
+          const errors = JSON.parse(match[0]);
+          return errors
+            .filter(item => item.error && item.suggestion)
+            .map(item => ({
+              error: String(item.error).trim().slice(0, 100),
+              suggestion: String(item.suggestion).trim().slice(0, 100)
+            }))
+            .slice(0, 10);
+        }
+      } catch (e) {
+        console.error('Parse error:', e);
+      }
+      
+      return [];
     } catch (error) {
-      console.error('Translation error:', error);
-      throw new Error('Failed to translate. Please try again.');
+      console.error('Grammar Error:', error);
+      return [];
     }
-  },
+  }
 };

@@ -1,123 +1,237 @@
 import React from 'react';
 import {
-  Bold, Italic, Underline, AlignLeft, AlignCenter, AlignRight,
-  List, ListOrdered, Type, Palette, Sparkles, Lock, Pin, Save, Trash2
+  Bold, Italic, Underline,
+  AlignLeft, AlignCenter, AlignRight,
+  Lock, Unlock, Pin, Trash2
 } from 'lucide-react';
 
 const Toolbar = ({
   onBold, onItalic, onUnderline,
   onAlignLeft, onAlignCenter, onAlignRight,
-  onFontSizeChange, onColorChange,
-  onAISummary, onAITags, onGlossary, onGrammarCheck, onTranslate,
-  onToggleEncryption, onTogglePin, onSave, onDelete,
-  isEncrypted, isPinned
+  onFontSizeChange,
+  onToggleEncryption, onTogglePin, onDelete,
+  isEncrypted, isPinned,
+  currentFontSize = 'normal'
 }) => {
+  const handleFontSizeChange = (e) => {
+    const size = e.target.value;
+    onFontSizeChange(size);
+  };
+
   return (
-    <div className="bg-white border-b border-gray-200 p-2 flex flex-wrap gap-2 items-center sticky top-0 z-10 shadow-sm">
-      {/* Text Formatting */}
-      <div className="flex gap-1 border-r pr-2">
-        <ToolbarButton onClick={onBold} title="Bold (Ctrl+B)">
-          <Bold size={18} />
-        </ToolbarButton>
-        <ToolbarButton onClick={onItalic} title="Italic (Ctrl+I)">
-          <Italic size={18} />
-        </ToolbarButton>
-        <ToolbarButton onClick={onUnderline} title="Underline (Ctrl+U)">
-          <Underline size={18} />
-        </ToolbarButton>
+    <div className="border-b border-[#E5E5E5] dark:border-[#1F1F1F] bg-white/50 dark:bg-[#0F0F0F]/50 backdrop-blur-xl">
+      {/* Mobile: Compact layout */}
+      <div className="md:hidden px-3 py-2.5 space-y-2">
+        {/* Row 1: Text formatting */}
+        <div className="flex items-center gap-1 flex-wrap">
+          <button
+            onClick={onBold}
+            className="p-2 hover:bg-[#F5F5F5] dark:hover:bg-[#1A1A1A] rounded-lg transition-colors text-[#171717] dark:text-[#E5E5E5]"
+            title="Bold"
+            disabled={isEncrypted}
+          >
+            <Bold size={16} className={isEncrypted ? 'opacity-40' : ''} />
+          </button>
+          <button
+            onClick={onItalic}
+            className="p-2 hover:bg-[#F5F5F5] dark:hover:bg-[#1A1A1A] rounded-lg transition-colors text-[#171717] dark:text-[#E5E5E5]"
+            title="Italic"
+            disabled={isEncrypted}
+          >
+            <Italic size={16} className={isEncrypted ? 'opacity-40' : ''} />
+          </button>
+          <button
+            onClick={onUnderline}
+            className="p-2 hover:bg-[#F5F5F5] dark:hover:bg-[#1A1A1A] rounded-lg transition-colors text-[#171717] dark:text-[#E5E5E5]"
+            title="Underline"
+            disabled={isEncrypted}
+          >
+            <Underline size={16} className={isEncrypted ? 'opacity-40' : ''} />
+          </button>
+
+          <div className="w-px h-6 bg-[#E5E5E5] dark:bg-[#262626] mx-1"></div>
+
+          <button
+            onClick={onAlignLeft}
+            className="p-2 hover:bg-[#F5F5F5] dark:hover:bg-[#1A1A1A] rounded-lg transition-colors text-[#171717] dark:text-[#E5E5E5]"
+            title="Align Left"
+            disabled={isEncrypted}
+          >
+            <AlignLeft size={16} className={isEncrypted ? 'opacity-40' : ''} />
+          </button>
+          <button
+            onClick={onAlignCenter}
+            className="p-2 hover:bg-[#F5F5F5] dark:hover:bg-[#1A1A1A] rounded-lg transition-colors text-[#171717] dark:text-[#E5E5E5]"
+            title="Align Center"
+            disabled={isEncrypted}
+          >
+            <AlignCenter size={16} className={isEncrypted ? 'opacity-40' : ''} />
+          </button>
+          <button
+            onClick={onAlignRight}
+            className="p-2 hover:bg-[#F5F5F5] dark:hover:bg-[#1A1A1A] rounded-lg transition-colors text-[#171717] dark:text-[#E5E5E5]"
+            title="Align Right"
+            disabled={isEncrypted}
+          >
+            <AlignRight size={16} className={isEncrypted ? 'opacity-40' : ''} />
+          </button>
+
+          <select
+            value={currentFontSize}
+            onChange={handleFontSizeChange}
+            disabled={isEncrypted}
+            className="ml-auto px-2.5 py-1.5 text-xs bg-white dark:bg-[#1A1A1A] border border-[#E5E5E5] dark:border-[#262626] rounded-lg hover:bg-[#F5F5F5] dark:hover:bg-[#171717] transition-colors disabled:opacity-40 text-[#171717] dark:text-[#E5E5E5] font-medium cursor-pointer"
+          >
+            <option value="small">Small</option>
+            <option value="normal">Normal</option>
+            <option value="large">Large</option>
+            <option value="huge">Huge</option>
+          </select>
+        </div>
+
+        {/* Row 2: Actions */}
+        <div className="flex items-center gap-1">
+          <button
+            onClick={onTogglePin}
+            className={`p-2 rounded-lg transition-all ${
+              isPinned
+                ? 'bg-[#6366F1]/10 dark:bg-[#6366F1]/20 text-[#6366F1]'
+                : 'hover:bg-[#F5F5F5] dark:hover:bg-[#1A1A1A] text-[#171717] dark:text-[#E5E5E5]'
+            }`}
+            title={isPinned ? 'Unpin' : 'Pin'}
+          >
+            <Pin size={16} fill={isPinned ? 'currentColor' : 'none'} />
+          </button>
+          <button
+            onClick={onToggleEncryption}
+            className={`p-2 rounded-lg transition-all ${
+              isEncrypted
+                ? 'bg-amber-500/10 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400'
+                : 'hover:bg-[#F5F5F5] dark:hover:bg-[#1A1A1A] text-[#171717] dark:text-[#E5E5E5]'
+            }`}
+            title={isEncrypted ? 'Decrypt' : 'Encrypt'}
+          >
+            {isEncrypted ? <Lock size={16} /> : <Unlock size={16} />}
+          </button>
+          <button
+            onClick={onDelete}
+            className="p-2 hover:bg-red-500/10 hover:text-red-600 dark:hover:text-red-400 rounded-lg transition-all text-[#171717] dark:text-[#E5E5E5]"
+            title="Delete"
+          >
+            <Trash2 size={16} />
+          </button>
+        </div>
       </div>
 
-      {/* Alignment */}
-      <div className="flex gap-1 border-r pr-2">
-        <ToolbarButton onClick={onAlignLeft} title="Align Left">
-          <AlignLeft size={18} />
-        </ToolbarButton>
-        <ToolbarButton onClick={onAlignCenter} title="Align Center">
-          <AlignCenter size={18} />
-        </ToolbarButton>
-        <ToolbarButton onClick={onAlignRight} title="Align Right">
-          <AlignRight size={18} />
-        </ToolbarButton>
-      </div>
+      {/* Desktop: Original layout */}
+      <div className="hidden md:block px-6 py-2.5">
+        <div className="flex items-center gap-1">
+          {/* Formatting buttons */}
+          <div className="flex items-center gap-1 pr-3 border-r border-[#E5E5E5] dark:border-[#262626]">
+            <button
+              onClick={onBold}
+              className="p-2 hover:bg-[#F5F5F5] dark:hover:bg-[#1A1A1A] rounded-lg transition-colors text-[#171717] dark:text-[#E5E5E5]"
+              title="Bold (Ctrl+B)"
+              disabled={isEncrypted}
+            >
+              <Bold size={16} className={isEncrypted ? 'opacity-40' : ''} />
+            </button>
+            <button
+              onClick={onItalic}
+              className="p-2 hover:bg-[#F5F5F5] dark:hover:bg-[#1A1A1A] rounded-lg transition-colors text-[#171717] dark:text-[#E5E5E5]"
+              title="Italic (Ctrl+I)"
+              disabled={isEncrypted}
+            >
+              <Italic size={16} className={isEncrypted ? 'opacity-40' : ''} />
+            </button>
+            <button
+              onClick={onUnderline}
+              className="p-2 hover:bg-[#F5F5F5] dark:hover:bg-[#1A1A1A] rounded-lg transition-colors text-[#171717] dark:text-[#E5E5E5]"
+              title="Underline (Ctrl+U)"
+              disabled={isEncrypted}
+            >
+              <Underline size={16} className={isEncrypted ? 'opacity-40' : ''} />
+            </button>
+          </div>
 
-      {/* Font Size */}
-      <div className="border-r pr-2">
-        <select
-          onChange={(e) => onFontSizeChange(e.target.value)}
-          className="border border-gray-300 rounded px-2 py-1 text-sm"
-          title="Font Size"
-        >
-          <option value="1">Small</option>
-          <option value="3" defaultValue>Normal</option>
-          <option value="5">Large</option>
-          <option value="7">Huge</option>
-        </select>
-      </div>
+          {/* Alignment buttons */}
+          <div className="flex items-center gap-1 pr-3 border-r border-[#E5E5E5] dark:border-[#262626]">
+            <button
+              onClick={onAlignLeft}
+              className="p-2 hover:bg-[#F5F5F5] dark:hover:bg-[#1A1A1A] rounded-lg transition-colors text-[#171717] dark:text-[#E5E5E5]"
+              title="Align Left"
+              disabled={isEncrypted}
+            >
+              <AlignLeft size={16} className={isEncrypted ? 'opacity-40' : ''} />
+            </button>
+            <button
+              onClick={onAlignCenter}
+              className="p-2 hover:bg-[#F5F5F5] dark:hover:bg-[#1A1A1A] rounded-lg transition-colors text-[#171717] dark:text-[#E5E5E5]"
+              title="Align Center"
+              disabled={isEncrypted}
+            >
+              <AlignCenter size={16} className={isEncrypted ? 'opacity-40' : ''} />
+            </button>
+            <button
+              onClick={onAlignRight}
+              className="p-2 hover:bg-[#F5F5F5] dark:hover:bg-[#1A1A1A] rounded-lg transition-colors text-[#171717] dark:text-[#E5E5E5]"
+              title="Align Right"
+              disabled={isEncrypted}
+            >
+              <AlignRight size={16} className={isEncrypted ? 'opacity-40' : ''} />
+            </button>
+          </div>
 
-      {/* AI Features */}
-      <div className="flex gap-1 border-r pr-2">
-        <ToolbarButton 
-          onClick={onAISummary} 
-          title="AI Summary (works on selection or full note)" 
-          className="text-purple-600 hover:bg-purple-50"
-        >
-          <Sparkles size={18} />
-        </ToolbarButton>
-        <ToolbarButton 
-          onClick={onAITags} 
-          title="Suggest Tags (works on selection or full note)" 
-          className="text-purple-600 hover:bg-purple-50 font-bold"
-        >
-          #
-        </ToolbarButton>
-        <ToolbarButton 
-          onClick={onGlossary} 
-          title="Highlight Key Terms (works on selection or full note)" 
-          className="text-purple-600 hover:bg-purple-50"
-        >
-          <Type size={18} />
-        </ToolbarButton>
-        <ToolbarButton 
-          onClick={onGrammarCheck} 
-          title="Grammar Check (works on selection or full note)" 
-          className="text-purple-600 hover:bg-purple-50 font-bold"
-        >
-          ✓
-        </ToolbarButton>
-      </div>
+          {/* Font size */}
+          <select
+            value={currentFontSize}
+            onChange={handleFontSizeChange}
+            disabled={isEncrypted}
+            className="px-3 py-1.5 text-sm bg-white dark:bg-[#1A1A1A] border border-[#E5E5E5] dark:border-[#262626] rounded-lg hover:bg-[#F5F5F5] dark:hover:bg-[#171717] transition-colors disabled:opacity-40 text-[#171717] dark:text-[#E5E5E5] font-medium cursor-pointer"
+            title="Font Size"
+          >
+            <option value="small">Small</option>
+            <option value="normal">Normal</option>
+            <option value="large">Large</option>
+            <option value="huge">Huge</option>
+          </select>
 
-      {/* Note Actions */}
-      <div className="flex gap-1 ml-auto">
-        <ToolbarButton
-          onClick={onTogglePin}
-          title={isPinned ? "Unpin Note" : "Pin Note"}
-          className={isPinned ? "text-primary-600 bg-primary-50" : "hover:bg-gray-100"}
-        >
-          <Pin size={18} fill={isPinned ? "currentColor" : "none"} />
-        </ToolbarButton>
-        <ToolbarButton
-          onClick={onToggleEncryption}
-          title={isEncrypted ? "Decrypt Note" : "Encrypt Note"}
-          className={isEncrypted ? "text-green-600 bg-green-50" : "hover:bg-gray-100"}
-        >
-          <Lock size={18} />
-        </ToolbarButton>
-        <ToolbarButton onClick={onDelete} title="Delete Note" className="text-red-600 hover:bg-red-50">
-          <Trash2 size={18} />
-        </ToolbarButton>
+          {/* Actions */}
+          <div className="flex items-center gap-1 pl-3 border-l border-[#E5E5E5] dark:border-[#262626]">
+            <button
+              onClick={onTogglePin}
+              className={`p-2 rounded-lg transition-all ${
+                isPinned
+                  ? 'bg-[#6366F1]/10 dark:bg-[#6366F1]/20 text-[#6366F1]'
+                  : 'hover:bg-[#F5F5F5] dark:hover:bg-[#1A1A1A] text-[#171717] dark:text-[#E5E5E5]'
+              }`}
+              title={isPinned ? 'Unpin Note' : 'Pin Note'}
+            >
+              <Pin size={16} fill={isPinned ? 'currentColor' : 'none'} />
+            </button>
+            <button
+              onClick={onToggleEncryption}
+              className={`p-2 rounded-lg transition-all ${
+                isEncrypted
+                  ? 'bg-amber-500/10 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400'
+                  : 'hover:bg-[#F5F5F5] dark:hover:bg-[#1A1A1A] text-[#171717] dark:text-[#E5E5E5]'
+              }`}
+              title={isEncrypted ? 'Decrypt Note' : 'Encrypt Note'}
+            >
+              {isEncrypted ? <Lock size={16} /> : <Unlock size={16} />}
+            </button>
+            <button
+              onClick={onDelete}
+              className="p-2 hover:bg-red-500/10 hover:text-red-600 dark:hover:text-red-400 rounded-lg transition-all text-[#171717] dark:text-[#E5E5E5]"
+              title="Delete Note"
+            >
+              <Trash2 size={16} />
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );
 };
-
-const ToolbarButton = ({ onClick, title, children, className = "" }) => (
-  <button
-    onClick={onClick}
-    title={title}
-    className={`p-2 rounded transition-colors ${className}`}
-  >
-    {children}
-  </button>
-);
 
 export default Toolbar;
