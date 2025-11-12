@@ -1,0 +1,101 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-gray-50 text-gray-900;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-primary-600 hover:bg-primary-700 text-white font-medium py-2 px-4 rounded-lg transition-colors;
+  }
+  
+  .btn-secondary {
+    @apply bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium py-2 px-4 rounded-lg transition-colors;
+  }
+  
+  /* ✅ Enhanced glossary highlighting - preserves formatting */
+  .glossary-highlight {
+    @apply bg-yellow-200 cursor-help relative;
+    border-bottom: 2px solid #eab308;
+    padding: 0 2px;
+    border-radius: 2px;
+    transition: all 0.2s ease;
+  }
+  
+  .glossary-highlight:hover {
+    @apply bg-yellow-300;
+    border-bottom-color: #ca8a04;
+  }
+  
+  .grammar-error {
+    @apply border-b-2 border-red-500 border-dotted cursor-pointer;
+  }
+}
+
+/* ✅ Ensure prose formatting is preserved */
+.prose {
+  max-width: 100%;
+}
+
+.prose p {
+  margin-top: 1em;
+  margin-bottom: 1em;
+}
+
+.prose h1, .prose h2, .prose h3 {
+  font-weight: bold;
+  margin-top: 1.5em;
+  margin-bottom: 0.5em;
+}
+
+.prose h1 {
+  font-size: 2em;
+}
+
+.prose h2 {
+  font-size: 1.5em;
+}
+
+.prose h3 {
+  font-size: 1.25em;
+}
+
+.prose ul, .prose ol {
+  padding-left: 2em;
+  margin: 1em 0;
+}
+
+.prose li {
+  margin: 0.5em 0;
+}
+
+.prose strong {
+  font-weight: bold;
+}
+
+.prose em {
+  font-style: italic;
+}
+
+.prose u {
+  text-decoration: underline;
+}
+
+/* ✅ CRITICAL SECURITY: Prevent content flash during mount/unmount */
+[contenteditable]:not([contenteditable="true"]) {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  position: absolute !important;
+  left: -9999px !important;
+}
+
+/* ✅ NEW: Hide editor content during initial load to prevent flash */
+.prose[contenteditable="true"] {
+  transition: opacity 0.15s ease-in;
+}
