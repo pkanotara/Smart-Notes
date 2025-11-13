@@ -1,128 +1,124 @@
-```markdown
-# Smart Notes ✨
+Here's a **minimal and simple** README.md for your Smart Notes project:
 
-> AI-powered note-taking app with custom editor, encryption, and multi-language translation
+```markdown name=README.md
+# ✨ Smart Notes
 
-[![Live Demo](https://img.shields.io/badge/demo-live-success)](https://smart-notes-pkanotara.netlify.app)
-[![Status](https://img.shields.io/badge/status-production-blue)]()
+> AI-powered note-taking application with encryption, translation, and smart features
 
-**Live:** [smart-notex-pkanotara.netlify.app](https://smart-notex-pkanotara.netlify.app)
+[![Live Demo](https://img.shields.io/badge/demo-live-brightgreen)](https://smart-notex.netlify.app/)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
----
+## 🚀 Features
 
-## Features
+- **📝 Custom Rich Text Editor** - Built from scratch without external libraries
+- **🤖 AI Integration** - Summary, Tags, Glossary, Grammar Check
+- **🔒 AES-256 Encryption** - Secure your sensitive notes
+- **🌍 Multi-language Translation** - 12 languages supported
+- **📥 Export** - Markdown, PDF, Plain Text
+- **🌙 Dark Mode** - Professional theme switching
+- **📱 Responsive** - Works on all devices
 
-### Core
-- **Custom Rich Text Editor** - Built from scratch (no TinyMCE/Quill)
-- **AI Features** - Summarization, Tags, Glossary, Grammar Check
-- **AES-256 Encryption** - Password-protected notes
-- **Multi-Language Translation** - 12 languages supported
-- **Export** - Markdown, PDF, Plain Text
-- **Dark Mode** - Professional theme switching
-- **Responsive** - Mobile, tablet, desktop
+## 🎯 Live Demo
 
-### AI Providers
-1. Groq (Primary) - 2 API keys
-2. DeepSeek (Fallback)
-3. OpenRouter (Fallback)
-4. Google Gemini (Fallback)
+**[https://smart-notex.netlify.app/](https://smart-notex.netlify.app/)**
 
-**Result:** 99.99% uptime with automatic fallback
+## 🛠️ Tech Stack
 
----
+- **Frontend:** React 18 + Vite + Tailwind CSS
+- **AI:** Groq, DeepSeek, OpenRouter, Google Gemini
+- **Security:** CryptoJS (AES-256)
+- **Storage:** LocalStorage
 
-## Quick Start
+## 📦 Installation
 
 ```bash
-# Install
+# Clone repository
+git clone https://github.com/pkanotara/Smart-Notes.git
+
+# Navigate to directory
+cd Smart-Notes
+
+# Install dependencies
 npm install
 
-# Development
-npm run dev
+# Create .env file
+cp .env.example .env
 
-# Build
-npm run build
+# Add your API keys to .env
+
+# Start development server
+npm run dev
 ```
 
----
+## 🔑 Environment Variables
 
-## Environment Setup
+Create a `.env` file:
 
-Create `.env`:
+```env
+VITE_GROQ_API_KEY_PRIMARY=your_groq_key
+VITE_GROQ_API_KEY_SECONDARY=your_groq_key
+VITE_GEMINI_API_KEY=your_gemini_key
+VITE_DEEPSEEK_API_KEY=your_deepseek_key
+VITE_OPENROUTER_API_KEY=your_openrouter_key
+```
+
+## 🚀 Deployment
 
 ```bash
-VITE_GROQ_API_KEY_PRIMARY=your_key_here
-VITE_GROQ_API_KEY_SECONDARY=your_key_here
-VITE_GEMINI_API_KEY=your_key_here
-VITE_DEEPSEEK_API_KEY=your_key_here
-VITE_OPENROUTER_API_KEY=your_key_here
+# Build for production
+npm run build
+
+# Deploy to Netlify
+netlify deploy --prod
 ```
 
-**Get API Keys:**
-- Groq: https://console.groq.com/keys
-- Gemini: https://makersuite.google.com/app/apikey
-- DeepSeek: https://platform.deepseek.com/api_keys
-- OpenRouter: https://openrouter.ai/keys
+## 📸 Screenshots
 
----
+<img src="https://via.placeholder.com/800x400?text=Smart+Notes+Dashboard" alt="Dashboard" width="100%">
 
-## Tech Stack
+## 🎨 Key Features
 
-**Frontend:** React 18, Vite, Tailwind CSS  
-**AI:** Groq, DeepSeek, OpenRouter, Gemini  
-**Security:** CryptoJS (AES-256)  
-**Storage:** LocalStorage  
-**Hosting:** Netlify  
+### AI-Powered Features
+- **Summary** - Generate 1-2 line summaries
+- **Tags** - Auto-generate relevant tags
+- **Glossary** - Identify and define key terms
+- **Grammar** - Check and fix errors
 
----
+### Security
+- **AES-256 Encryption** - Military-grade security
+- **Password Confirmation** - Secure password entry
+- **Local Storage** - Your data stays private
 
-## Project Structure
+### Translation
+- 12 Languages: English, Hindi, Spanish, French, German, Chinese, Japanese, Korean, Arabic, Portuguese, Russian, Italian
+
+## 📊 Project Structure
 
 ```
-src/
-├── components/       # UI components
-├── services/         # AI, encryption, storage, translation
-├── hooks/           # Custom React hooks
-└── App.jsx          # Main app
+Smart-Notes/
+├── src/
+│   ├── components/     # React components
+│   ├── services/       # AI, Encryption, Storage
+│   ├── hooks/          # Custom React hooks
+│   └── App.jsx         # Main app
+├── public/             # Static assets
+└── package.json        # Dependencies
 ```
 
----
+## 👤 Author
 
-## Features Detail
+**Parth Kanotara** ([@pkanotara](https://github.com/pkanotara))
 
-| Feature | Description | Speed |
-|---------|-------------|-------|
-| **Summary** | AI-generated 1-2 line summary | ~2s |
-| **Tags** | Auto-generate 3-5 relevant tags | ~1.5s |
-| **Glossary** | Highlight key terms with definitions | ~3s |
-| **Grammar** | Detect errors + one-click fix | ~4s |
-| **Translation** | Full note translation (12 languages) | ~5-20s |
-| **Encryption** | AES-256 with password confirmation | Instant |
-
-**Languages:** English, Hindi, Spanish, French, German, Chinese, Japanese, Korean, Arabic, Portuguese, Russian, Italian
+## 🙏 Acknowledgments
+- AI powered by Groq, DeepSeek, OpenRouter, and Google Gemini
+- Icons by Lucide React
 
 ---
 
-## Usage
+<div align="center">
+  
+**[⭐ Star this repo](https://github.com/pkanotara/Smart-Notes)** if you find it helpful!
 
-1. **Create Note** - Click "+ New Note"
-2. **Format Text** - Use toolbar (Bold, Italic, Alignment, Font Size)
-3. **AI Features** - Click AI button (⭐) → Select feature
-4. **Translate** - Click translate button → Select language
-5. **Encrypt** - Click lock icon → Set password
-6. **Export** - Click download icon → Select format
+Made with ❤️ by [@pkanotara](https://github.com/pkanotara)
 
----
-
-## Security
-
-- **AES-256 Encryption** - Military-grade
-- **Client-Side Only** - No server storage
-- **Password Confirmation** - With strength meter
-- **No Password Recovery** - True end-to-end encryption
-
-
----
-
-## Development
-**Developer:** [@pkanotara](https://github.com/pkanotara) 
+</div>
