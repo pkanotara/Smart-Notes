@@ -1,29 +1,46 @@
-import React, { useRef, useEffect, useState } from 'react';
-import Toolbar from './Toolbar';
-import AIFloatingMenu from '../AIFloatingMenu/AIFloatingMenu';
+import React, { useRef, useEffect, useState } from "react";
+import Toolbar from "./Toolbar";
+import AIFloatingMenu from "../AIFloatingMenu/AIFloatingMenu";
 import {
-  formatBold, formatItalic, formatUnderline,
-  alignLeft, alignCenter, alignRight
-} from './EditorCommands';
-import { Edit2, CheckCircle, Clock, User, Unlock } from 'lucide-react';
-import { storageService } from '../../services/storageService';
+  formatBold,
+  formatItalic,
+  formatUnderline,
+  alignLeft,
+  alignCenter,
+  alignRight,
+} from "./EditorCommands";
+import { Edit2, CheckCircle, Clock, User, Unlock } from "lucide-react";
+// import { Edit2, CheckCircle, Clock, User, Unlock } from "lucide-react";
+import { storageService } from "../../services/storageService";
 
 const Editor = ({
-  content, onChange, onSave, onDelete,
-  onAISummary, onAITags, onGlossary, onGrammarCheck,
-  onToggleEncryption, onTogglePin,
-  isEncrypted, isPinned, glossaryTerms, noteId,
-  title, onTitleChange,
+  content,
+  onChange,
+  onSave,
+  onDelete,
+  onAISummary,
+  onAITags,
+  onGlossary,
+  onGrammarCheck,
+  onToggleEncryption,
+  onTogglePin,
+  onTranslate, // Add this line
+  isEncrypted,
+  isPinned,
+  glossaryTerms,
+  noteId,
+  title,
+  onTitleChange,
   grammarErrors = [],
   onFixGrammarError,
   createdAt,
   updatedAt,
   createdBy,
-  updateNote
+  updateNote,
 }) => {
   const editorRef = useRef(null);
   const titleRef = useRef(null);
-  const [selectionInfo, setSelectionInfo] = useState('');
+  const [selectionInfo, setSelectionInfo] = useState("");
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [localTitle, setLocalTitle] = useState(title);
   const isUpdatingRef = useRef(false);
@@ -34,9 +51,9 @@ const Editor = ({
   const contentRef = useRef(content);
   const isHighlightingRef = useRef(false);
   const [showTimestampTooltip, setShowTimestampTooltip] = useState(false);
-  
+
   // Get fontSize from note data
-  const [currentFontSize, setCurrentFontSize] = useState('normal');
+  const [currentFontSize, setCurrentFontSize] = useState("normal");
 
   useEffect(() => {
     setLocalTitle(title);
@@ -46,38 +63,47 @@ const Editor = ({
   useEffect(() => {
     // Get the active note's fontSize from localStorage
     const notes = storageService.loadNotes();
-    const activeNote = notes.find(n => n.id === noteId);
-    const savedFontSize = activeNote?.fontSize || 'normal';
+    const activeNote = notes.find((n) => n.id === noteId);
+    const savedFontSize = activeNote?.fontSize || "normal";
     setCurrentFontSize(savedFontSize);
-    
+
     // Apply the font size class to editor
     if (editorRef.current) {
-      editorRef.current.className = editorRef.current.className.replace(/font-size-\w+/g, '');
+      editorRef.current.className = editorRef.current.className.replace(
+        /font-size-\w+/g,
+        ""
+      );
       editorRef.current.classList.add(`font-size-${savedFontSize}`);
     }
   }, [noteId]);
 
   useEffect(() => {
-    if (!editorRef.current || isUpdatingRef.current || isEncrypted || isHighlightingRef.current) return;
-    
+    if (
+      !editorRef.current ||
+      isUpdatingRef.current ||
+      isEncrypted ||
+      isHighlightingRef.current
+    )
+      return;
+
     const currentHTML = editorRef.current.innerHTML;
-    
+
     if (grammarErrors.length > 0 || glossaryTerms.length > 0) {
-      if (!currentHTML || currentHTML === '<p><br></p>' || currentHTML === '') {
+      if (!currentHTML || currentHTML === "<p><br></p>" || currentHTML === "") {
         editorRef.current.innerHTML = content;
         contentRef.current = content;
       }
       return;
     }
-    
+
     const cleanCurrent = currentHTML
-      .replace(/<span class="grammar-error"[^>]*>(.*?)<\/span>/gi, '$1')
-      .replace(/<span class="glossary-highlight"[^>]*>(.*?)<\/span>/gi, '$1');
-    
+      .replace(/<span class="grammar-error"[^>]*>(.*?)<\/span>/gi, "$1")
+      .replace(/<span class="glossary-highlight"[^>]*>(.*?)<\/span>/gi, "$1");
+
     const cleanContent = content
-      .replace(/<span class="grammar-error"[^>]*>(.*?)<\/span>/gi, '$1')
-      .replace(/<span class="glossary-highlight"[^>]*>(.*?)<\/span>/gi, '$1');
-    
+      .replace(/<span class="grammar-error"[^>]*>(.*?)<\/span>/gi, "$1")
+      .replace(/<span class="glossary-highlight"[^>]*>(.*?)<\/span>/gi, "$1");
+
     if (cleanContent && cleanContent !== cleanCurrent) {
       editorRef.current.innerHTML = content;
       contentRef.current = content;
@@ -85,9 +111,17 @@ const Editor = ({
   }, [content, noteId, isEncrypted]);
 
   useEffect(() => {
-    const termsChanged = JSON.stringify(glossaryTerms) !== JSON.stringify(lastGlossaryTermsRef.current);
-    
-    if (glossaryTerms && glossaryTerms.length > 0 && termsChanged && !isEncrypted && editorRef.current) {
+    const termsChanged =
+      JSON.stringify(glossaryTerms) !==
+      JSON.stringify(lastGlossaryTermsRef.current);
+
+    if (
+      glossaryTerms &&
+      glossaryTerms.length > 0 &&
+      termsChanged &&
+      !isEncrypted &&
+      editorRef.current
+    ) {
       lastGlossaryTermsRef.current = [...glossaryTerms];
       if (grammarErrors.length > 0) {
         lastGrammarErrorsRef.current = [];
@@ -99,7 +133,10 @@ const Editor = ({
           isHighlightingRef.current = false;
         }, 200);
       });
-    } else if (glossaryTerms.length === 0 && lastGlossaryTermsRef.current.length > 0) {
+    } else if (
+      glossaryTerms.length === 0 &&
+      lastGlossaryTermsRef.current.length > 0
+    ) {
       lastGlossaryTermsRef.current = [];
       isHighlightingRef.current = true;
       removeAllGlossaryHighlights();
@@ -110,9 +147,16 @@ const Editor = ({
   }, [glossaryTerms, isEncrypted]);
 
   useEffect(() => {
-    const errorsChanged = JSON.stringify(grammarErrors) !== JSON.stringify(lastGrammarErrorsRef.current);
-    
-    if (grammarErrors.length > 0 && errorsChanged && !isEncrypted && editorRef.current) {
+    const errorsChanged =
+      JSON.stringify(grammarErrors) !==
+      JSON.stringify(lastGrammarErrorsRef.current);
+
+    if (
+      grammarErrors.length > 0 &&
+      errorsChanged &&
+      !isEncrypted &&
+      editorRef.current
+    ) {
       lastGrammarErrorsRef.current = [...grammarErrors];
       if (glossaryTerms.length > 0) {
         lastGlossaryTermsRef.current = [];
@@ -124,7 +168,10 @@ const Editor = ({
           isHighlightingRef.current = false;
         }, 200);
       });
-    } else if (grammarErrors.length === 0 && lastGrammarErrorsRef.current.length > 0) {
+    } else if (
+      grammarErrors.length === 0 &&
+      lastGrammarErrorsRef.current.length > 0
+    ) {
       lastGrammarErrorsRef.current = [];
       isHighlightingRef.current = true;
       removeAllGrammarHighlights();
@@ -140,19 +187,19 @@ const Editor = ({
 
     const handleInteraction = (e) => {
       const target = e.target;
-      if (target.classList && target.classList.contains('grammar-error')) {
+      if (target.classList && target.classList.contains("grammar-error")) {
         e.stopPropagation();
         if (hideTimeoutRef.current) {
           clearTimeout(hideTimeoutRef.current);
         }
-        const error = target.getAttribute('data-error');
-        const suggestion = target.getAttribute('data-suggestion');
+        const error = target.getAttribute("data-error");
+        const suggestion = target.getAttribute("data-suggestion");
         if (error && suggestion) {
           const rect = target.getBoundingClientRect();
           setActiveTooltip({
             error,
             suggestion,
-            position: { x: rect.left + rect.width / 2, y: rect.top }
+            position: { x: rect.left + rect.width / 2, y: rect.top },
           });
         }
       }
@@ -160,7 +207,7 @@ const Editor = ({
 
     const handleMouseOut = (e) => {
       const target = e.target;
-      if (target.classList && target.classList.contains('grammar-error')) {
+      if (target.classList && target.classList.contains("grammar-error")) {
         if (window.innerWidth > 768) {
           hideTimeoutRef.current = setTimeout(() => {
             setActiveTooltip(null);
@@ -169,32 +216,35 @@ const Editor = ({
       }
     };
 
-    editor.addEventListener('mouseover', handleInteraction);
-    editor.addEventListener('click', handleInteraction);
-    editor.addEventListener('mouseout', handleMouseOut);
+    editor.addEventListener("mouseover", handleInteraction);
+    editor.addEventListener("click", handleInteraction);
+    editor.addEventListener("mouseout", handleMouseOut);
 
     return () => {
-      editor.removeEventListener('mouseover', handleInteraction);
-      editor.removeEventListener('click', handleInteraction);
-      editor.removeEventListener('mouseout', handleMouseOut);
+      editor.removeEventListener("mouseover", handleInteraction);
+      editor.removeEventListener("click", handleInteraction);
+      editor.removeEventListener("mouseout", handleMouseOut);
     };
   }, [grammarErrors]);
 
   useEffect(() => {
     if (!activeTooltip) return;
     const handleClickOutside = (e) => {
-      if (!e.target.closest('.grammar-error') && !e.target.closest('.fixed.z-50')) {
+      if (
+        !e.target.closest(".grammar-error") &&
+        !e.target.closest(".fixed.z-50")
+      ) {
         setActiveTooltip(null);
       }
     };
-    document.addEventListener('click', handleClickOutside);
-    return () => document.removeEventListener('click', handleClickOutside);
+    document.addEventListener("click", handleClickOutside);
+    return () => document.removeEventListener("click", handleClickOutside);
   }, [activeTooltip]);
 
   useEffect(() => {
     const handleSelectionChange = () => {
       if (isEncrypted) {
-        setSelectionInfo('');
+        setSelectionInfo("");
         return;
       }
       const selection = window.getSelection();
@@ -202,11 +252,12 @@ const Editor = ({
       if (selectedText && selectedText.length > 0) {
         setSelectionInfo(`${selectedText.length} characters selected`);
       } else {
-        setSelectionInfo('');
+        setSelectionInfo("");
       }
     };
-    document.addEventListener('selectionchange', handleSelectionChange);
-    return () => document.removeEventListener('selectionchange', handleSelectionChange);
+    document.addEventListener("selectionchange", handleSelectionChange);
+    return () =>
+      document.removeEventListener("selectionchange", handleSelectionChange);
   }, [isEncrypted]);
 
   const handleInput = (e) => {
@@ -215,8 +266,8 @@ const Editor = ({
     const newContent = e.target.innerHTML;
     contentRef.current = newContent;
     const cleanContent = newContent
-      .replace(/<span class="grammar-error"[^>]*>(.*?)<\/span>/gi, '$1')
-      .replace(/<span class="glossary-highlight"[^>]*>(.*?)<\/span>/gi, '$1');
+      .replace(/<span class="grammar-error"[^>]*>(.*?)<\/span>/gi, "$1")
+      .replace(/<span class="glossary-highlight"[^>]*>(.*?)<\/span>/gi, "$1");
     onChange(cleanContent);
     setTimeout(() => {
       isUpdatingRef.current = false;
@@ -239,16 +290,16 @@ const Editor = ({
 
   const handleTitleBlur = () => {
     setIsEditingTitle(false);
-    const newTitle = localTitle.trim() || 'Untitled Note';
+    const newTitle = localTitle.trim() || "Untitled Note";
     setLocalTitle(newTitle);
     onTitleChange(newTitle);
   };
 
   const handleTitleKeyDown = (e) => {
-    if (e.key === 'Enter') {
+    if (e.key === "Enter") {
       e.preventDefault();
       handleTitleBlur();
-    } else if (e.key === 'Escape') {
+    } else if (e.key === "Escape") {
       setLocalTitle(title);
       setIsEditingTitle(false);
     }
@@ -261,10 +312,13 @@ const Editor = ({
     if (updateNote) {
       updateNote({ fontSize: size });
     }
-    
+
     if (editorRef.current) {
       // Apply font size class to editor
-      editorRef.current.className = editorRef.current.className.replace(/font-size-\w+/g, '');
+      editorRef.current.className = editorRef.current.className.replace(
+        /font-size-\w+/g,
+        ""
+      );
       editorRef.current.classList.add(`font-size-${size}`);
     }
   };
@@ -273,22 +327,31 @@ const Editor = ({
     if (!editorRef.current) return;
     try {
       let html = editorRef.current.innerHTML || contentRef.current || content;
-      if (!html || html === '<p><br></p>') {
+      if (!html || html === "<p><br></p>") {
         html = content;
       }
-      html = html.replace(/<span class="glossary-highlight"[^>]*>(.*?)<\/span>/gi, '$1');
-      html = html.replace(/<span class="grammar-error"[^>]*>(.*?)<\/span>/gi, '$1');
+      html = html.replace(
+        /<span class="glossary-highlight"[^>]*>(.*?)<\/span>/gi,
+        "$1"
+      );
+      html = html.replace(
+        /<span class="grammar-error"[^>]*>(.*?)<\/span>/gi,
+        "$1"
+      );
       glossaryTerms.forEach(({ term, definition }) => {
-        const escapedTerm = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        const regex = new RegExp(`\\b(${escapedTerm})\\b(?![^<]*>)`, 'gi');
+        const escapedTerm = term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        const regex = new RegExp(`\\b(${escapedTerm})\\b(?![^<]*>)`, "gi");
         html = html.replace(regex, (match) => {
-          return `<span class="glossary-highlight" data-definition="${definition.replace(/"/g, '&quot;')}" title="${definition}">${match}</span>`;
+          return `<span class="glossary-highlight" data-definition="${definition.replace(
+            /"/g,
+            "&quot;"
+          )}" title="${definition}">${match}</span>`;
         });
       });
       editorRef.current.innerHTML = html;
       contentRef.current = html;
     } catch (error) {
-      console.error('Error highlighting glossary terms:', error);
+      console.error("Error highlighting glossary terms:", error);
       if (content) {
         editorRef.current.innerHTML = content;
       }
@@ -296,27 +359,42 @@ const Editor = ({
   };
 
   const highlightGrammarErrors = () => {
-    if (!editorRef.current || !grammarErrors || grammarErrors.length === 0) return;
+    if (!editorRef.current || !grammarErrors || grammarErrors.length === 0)
+      return;
     try {
       let html = editorRef.current.innerHTML || contentRef.current || content;
-      if (!html || html === '<p><br></p>') {
+      if (!html || html === "<p><br></p>") {
         html = content;
       }
-      html = html.replace(/<span class="grammar-error"[^>]*>(.*?)<\/span>/gi, '$1');
-      html = html.replace(/<span class="glossary-highlight"[^>]*>(.*?)<\/span>/gi, '$1');
-      const sortedErrors = [...grammarErrors].sort((a, b) => b.error.length - a.error.length);
+      html = html.replace(
+        /<span class="grammar-error"[^>]*>(.*?)<\/span>/gi,
+        "$1"
+      );
+      html = html.replace(
+        /<span class="glossary-highlight"[^>]*>(.*?)<\/span>/gi,
+        "$1"
+      );
+      const sortedErrors = [...grammarErrors].sort(
+        (a, b) => b.error.length - a.error.length
+      );
       sortedErrors.forEach(({ error, suggestion }) => {
-        const escapedError = error.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        const safeSuggestion = suggestion.replace(/"/g, '&quot;');
-        const regex = new RegExp(`(?<!<[^>]*)(${escapedError})(?![^<]*>)`, 'gi');
+        const escapedError = error.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        const safeSuggestion = suggestion.replace(/"/g, "&quot;");
+        const regex = new RegExp(
+          `(?<!<[^>]*)(${escapedError})(?![^<]*>)`,
+          "gi"
+        );
         html = html.replace(regex, (match) => {
-          return `<span class="grammar-error" data-error="${error.replace(/"/g, '&quot;')}" data-suggestion="${safeSuggestion}">${match}</span>`;
+          return `<span class="grammar-error" data-error="${error.replace(
+            /"/g,
+            "&quot;"
+          )}" data-suggestion="${safeSuggestion}">${match}</span>`;
         });
       });
       editorRef.current.innerHTML = html;
       contentRef.current = html;
     } catch (error) {
-      console.error('Error highlighting grammar:', error);
+      console.error("Error highlighting grammar:", error);
       if (content) {
         editorRef.current.innerHTML = content;
       }
@@ -327,11 +405,14 @@ const Editor = ({
     if (!editorRef.current) return;
     try {
       let html = editorRef.current.innerHTML || contentRef.current;
-      html = html.replace(/<span class="grammar-error"[^>]*>(.*?)<\/span>/gi, '$1');
+      html = html.replace(
+        /<span class="grammar-error"[^>]*>(.*?)<\/span>/gi,
+        "$1"
+      );
       editorRef.current.innerHTML = html;
       contentRef.current = html;
     } catch (error) {
-      console.error('Error removing grammar highlights:', error);
+      console.error("Error removing grammar highlights:", error);
     }
   };
 
@@ -339,25 +420,33 @@ const Editor = ({
     if (!editorRef.current) return;
     try {
       let html = editorRef.current.innerHTML || contentRef.current;
-      html = html.replace(/<span class="glossary-highlight"[^>]*>(.*?)<\/span>/gi, '$1');
+      html = html.replace(
+        /<span class="glossary-highlight"[^>]*>(.*?)<\/span>/gi,
+        "$1"
+      );
       editorRef.current.innerHTML = html;
       contentRef.current = html;
     } catch (error) {
-      console.error('Error removing glossary highlights:', error);
+      console.error("Error removing glossary highlights:", error);
     }
   };
 
   const removeSingleErrorHighlight = (errorText) => {
     if (!editorRef.current) return;
     try {
-      const escapedError = errorText.replace(/"/g, '&quot;').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const escapedError = errorText
+        .replace(/"/g, "&quot;")
+        .replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
       let html = editorRef.current.innerHTML;
-      const regex = new RegExp(`<span class="grammar-error" data-error="${escapedError}"[^>]*>(.*?)<\\/span>`, 'g');
-      html = html.replace(regex, '$1');
+      const regex = new RegExp(
+        `<span class="grammar-error" data-error="${escapedError}"[^>]*>(.*?)<\\/span>`,
+        "g"
+      );
+      html = html.replace(regex, "$1");
       editorRef.current.innerHTML = html;
       contentRef.current = html;
     } catch (error) {
-      console.error('Error removing single highlight:', error);
+      console.error("Error removing single highlight:", error);
     }
   };
 
@@ -382,12 +471,15 @@ const Editor = ({
 
   const getWordCount = () => {
     if (isEncrypted) {
-      return '🔒 Encrypted';
+      return "🔒 Encrypted";
     }
-    const div = document.createElement('div');
+    const div = document.createElement("div");
     div.innerHTML = content;
-    const text = div.textContent || '';
-    const words = text.trim().split(/\s+/).filter(w => w.length > 0).length;
+    const text = div.textContent || "";
+    const words = text
+      .trim()
+      .split(/\s+/)
+      .filter((w) => w.length > 0).length;
     const chars = text.length;
     return `${words} words · ${chars} characters`;
   };
@@ -396,9 +488,9 @@ const Editor = ({
     return (
       <div className="flex flex-col h-full card animate-fade-in">
         <div className="px-6 sm:px-8 py-4">
-          <h2 
-            className="text-2xl sm:text-3xl font-bold text-[#171717] dark:text-[#FAFAFA] truncate" 
-            style={{ letterSpacing: '-0.02em' }}
+          <h2
+            className="text-2xl sm:text-3xl font-bold text-[#171717] dark:text-[#FAFAFA] truncate"
+            style={{ letterSpacing: "-0.02em" }}
             title={localTitle}
           >
             {localTitle}
@@ -420,23 +512,34 @@ const Editor = ({
           isPinned={isPinned}
           currentFontSize={currentFontSize}
         />
-        
+
         <div className="flex-1 flex items-center justify-center p-8">
           <div className="text-center max-w-md animate-slide-up">
             <div className="w-24 h-24 mx-auto mb-6 bg-gradient-to-br from-amber-400 to-orange-500 rounded-3xl flex items-center justify-center shadow-2xl shadow-amber-500/20">
-              <svg className="w-14 h-14 text-white" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+              <svg
+                className="w-14 h-14 text-white"
+                fill="currentColor"
+                viewBox="0 0 20 20"
+              >
+                <path
+                  fillRule="evenodd"
+                  d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z"
+                  clipRule="evenodd"
+                />
               </svg>
             </div>
-            
-            <h3 className="text-2xl font-bold text-[#171717] dark:text-[#FAFAFA] mb-3" style={{ letterSpacing: '-0.02em' }}>
+
+            <h3
+              className="text-2xl font-bold text-[#171717] dark:text-[#FAFAFA] mb-3"
+              style={{ letterSpacing: "-0.02em" }}
+            >
               This note is encrypted
             </h3>
-            
+
             <p className="text-sm text-[#737373] dark:text-[#A3A3A3] mb-6 leading-relaxed">
               Enter your password to unlock and view this note
             </p>
-            
+
             {/* Prominent Unlock Button */}
             <button
               onClick={onToggleEncryption}
@@ -445,7 +548,7 @@ const Editor = ({
               <Unlock size={22} />
               <span>Unlock Note</span>
             </button>
-            
+
             <div className="bg-[#F5F5F5] dark:bg-[#1A1A1A] border border-[#E5E5E5] dark:border-[#262626] rounded-xl p-4">
               <p className="text-xs font-bold text-[#171717] dark:text-[#FAFAFA] mb-1">
                 🔐 AES-256 Encrypted
@@ -456,10 +559,12 @@ const Editor = ({
             </div>
           </div>
         </div>
-        
+
         <div className="px-6 sm:px-8 py-3 border-t border-[#E5E5E5] dark:border-[#1F1F1F] text-xs text-[#A3A3A3] dark:text-[#525252] flex justify-between items-center font-medium">
           <span>🔒 Encrypted</span>
-          <span className="text-green-600 dark:text-green-500 font-semibold">Protected</span>
+          <span className="text-green-600 dark:text-green-500 font-semibold">
+            Protected
+          </span>
         </div>
       </div>
     );
@@ -481,13 +586,13 @@ const Editor = ({
                 onKeyDown={handleTitleKeyDown}
                 className="flex-1 text-2xl sm:text-3xl font-bold bg-transparent border-none outline-none text-[#171717] dark:text-[#FAFAFA]"
                 placeholder="Untitled"
-                style={{ letterSpacing: '-0.02em' }}
+                style={{ letterSpacing: "-0.02em" }}
               />
             ) : (
-              <h2 
+              <h2
                 onClick={handleTitleEdit}
                 className="flex-1 text-2xl sm:text-3xl font-bold text-[#171717] dark:text-[#FAFAFA] cursor-text hover:text-[#525252] dark:hover:text-[#D4D4D4] transition-colors truncate"
-                style={{ letterSpacing: '-0.02em' }}
+                style={{ letterSpacing: "-0.02em" }}
                 title={localTitle}
               >
                 {localTitle}
@@ -502,28 +607,34 @@ const Editor = ({
             </button>
           </div>
         </div>
-        
+
         {/* Timestamp Info */}
         <div className="mt-3 flex flex-wrap items-center gap-4 text-xs text-[#A3A3A3] dark:text-[#525252] font-medium">
-          <div 
+          <div
             className="flex items-center gap-1.5 relative cursor-help"
             onMouseEnter={() => setShowTimestampTooltip(true)}
             onMouseLeave={() => setShowTimestampTooltip(false)}
           >
             <Clock size={12} />
             <span>{storageService.formatTimestamp(updatedAt)}</span>
-            
+
             {showTimestampTooltip && (
               <div className="hidden sm:block absolute bottom-full left-0 mb-2 bg-[#171717] dark:bg-[#FAFAFA] text-white dark:text-[#171717] px-3 py-2 rounded-lg text-xs whitespace-nowrap shadow-xl z-10">
                 <div className="space-y-1">
-                  <div><strong>Created:</strong> {storageService.getFullTimestamp(createdAt)}</div>
-                  <div><strong>Modified:</strong> {storageService.getFullTimestamp(updatedAt)}</div>
+                  <div>
+                    <strong>Created:</strong>{" "}
+                    {storageService.getFullTimestamp(createdAt)}
+                  </div>
+                  <div>
+                    <strong>Modified:</strong>{" "}
+                    {storageService.getFullTimestamp(updatedAt)}
+                  </div>
                 </div>
                 <div className="absolute top-full left-4 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-[#171717] dark:border-t-[#FAFAFA]"></div>
               </div>
             )}
           </div>
-          
+
           {createdBy && (
             <div className="flex items-center gap-1.5">
               <User size={12} />
@@ -544,63 +655,78 @@ const Editor = ({
         onToggleEncryption={onToggleEncryption}
         onTogglePin={onTogglePin}
         onDelete={onDelete}
+        onTranslate={onTranslate} // Add this line
         isEncrypted={isEncrypted}
         isPinned={isPinned}
         currentFontSize={currentFontSize}
       />
-      
+
       {selectionInfo && (
         <div className="px-6 sm:px-8 py-2 bg-[#6366F1]/5 dark:bg-[#6366F1]/10 border-b border-[#E5E5E5] dark:border-[#1F1F1F] text-xs text-[#6366F1] font-semibold">
           ✓ {selectionInfo}
         </div>
       )}
-      
+
       {grammarErrors.length > 0 && (
         <div className="px-6 sm:px-8 py-2 bg-amber-50 dark:bg-amber-900/10 border-b border-amber-200 dark:border-amber-800/20 text-xs font-semibold flex items-center gap-2">
-          <CheckCircle size={12} className="text-amber-600 dark:text-amber-500 flex-shrink-0" />
+          <CheckCircle
+            size={12}
+            className="text-amber-600 dark:text-amber-500 flex-shrink-0"
+          />
           <span className="text-amber-800 dark:text-amber-400">
-            {grammarErrors.length} {grammarErrors.length === 1 ? 'error' : 'errors'}
+            {grammarErrors.length}{" "}
+            {grammarErrors.length === 1 ? "error" : "errors"}
           </span>
-          <span className="hidden sm:inline text-amber-600 dark:text-amber-500 text-xs">• Click to fix</span>
+          <span className="hidden sm:inline text-amber-600 dark:text-amber-500 text-xs">
+            • Click to fix
+          </span>
         </div>
       )}
-      
+
       <div
         ref={editorRef}
         contentEditable={true}
         onInput={handleInput}
         className={`flex-1 px-6 sm:px-8 py-6 outline-none overflow-auto prose bg-white dark:bg-[#0A0A0A] font-size-${currentFontSize}`}
-        style={{ minHeight: '300px', caretColor: 'currentColor' }}
+        style={{ minHeight: "300px", caretColor: "currentColor" }}
         suppressContentEditableWarning
       />
 
       {activeTooltip && (
         <>
-          <div 
+          <div
             className="fixed inset-0 z-40 md:hidden"
             onClick={() => setActiveTooltip(null)}
           />
-          
-          <div 
+
+          <div
             className="fixed z-50 bg-white dark:bg-[#171717] border-2 border-[#6366F1] rounded-xl shadow-2xl p-4 pointer-events-auto"
             style={{
               left: `${activeTooltip.position.x}px`,
               top: `${activeTooltip.position.y}px`,
-              transform: 'translate(-50%, calc(-100% - 10px))',
-              maxWidth: '90vw',
-              width: '300px'
+              transform: "translate(-50%, calc(-100% - 10px))",
+              maxWidth: "90vw",
+              width: "300px",
             }}
             onMouseEnter={handleTooltipMouseEnter}
             onMouseLeave={handleTooltipMouseLeave}
           >
             <div className="space-y-3">
               <div className="flex items-start gap-2">
-                <span className="text-red-500 flex-shrink-0 mt-0.5 font-bold">✕</span>
-                <p className="text-xs text-red-700 dark:text-red-400 font-semibold leading-relaxed">{activeTooltip.error}</p>
+                <span className="text-red-500 flex-shrink-0 mt-0.5 font-bold">
+                  ✕
+                </span>
+                <p className="text-xs text-red-700 dark:text-red-400 font-semibold leading-relaxed">
+                  {activeTooltip.error}
+                </p>
               </div>
               <div className="flex items-start gap-2 pt-2 border-t border-[#E5E5E5] dark:border-[#262626]">
-                <span className="text-green-500 flex-shrink-0 mt-0.5 font-bold">✓</span>
-                <p className="text-xs text-green-700 dark:text-green-400 font-semibold leading-relaxed">{activeTooltip.suggestion}</p>
+                <span className="text-green-500 flex-shrink-0 mt-0.5 font-bold">
+                  ✓
+                </span>
+                <p className="text-xs text-green-700 dark:text-green-400 font-semibold leading-relaxed">
+                  {activeTooltip.suggestion}
+                </p>
               </div>
               <button
                 onClick={handleFixError}
@@ -613,7 +739,7 @@ const Editor = ({
           </div>
         </>
       )}
-      
+
       <div className="px-6 sm:px-8 py-3 border-t border-[#E5E5E5] dark:border-[#1F1F1F] text-xs text-[#A3A3A3] dark:text-[#525252] flex justify-between items-center font-medium">
         <span className="truncate">{getWordCount()}</span>
         {isPinned && (

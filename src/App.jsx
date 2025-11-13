@@ -8,9 +8,11 @@ import AIPanel from './components/AIPanel/AIPanel';
 import ToastContainer from './components/Toast/ToastContainer';
 import DarkModeToggle from './components/DarkMode/DarkModeToggle';
 import ExportMenu from './components/ExportMenu/ExportMenu';
+import TranslationModal from './components/Translation/TranslationModal';
 import { storageService } from './services/storageService';
 import { encryptionService } from './services/encryptionService';
 import { aiService } from './services/aiService';
+import { translationService } from './services/translationService';
 import { useToast } from './hooks/useToast';
 import { Loader2, Menu, X, Plus, Sparkles, Download } from 'lucide-react';
 
@@ -27,6 +29,7 @@ function App() {
   const [grammarErrors, setGrammarErrors] = useState([]);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
+  const [showTranslationModal, setShowTranslationModal] = useState(false);
   const { toasts, addToast, removeToast } = useToast();
 
   useEffect(() => {
@@ -42,7 +45,7 @@ function App() {
       const welcomeNote = {
         id: now.toString(),
         title: 'Welcome to Smart Notes ✨',
-        content: '<h1>Welcome to Smart Notes! 👋</h1><p>Your intelligent note-taking companion with AI superpowers.</p><h2>✨ Features</h2><ul><li><strong>Rich Text Editing</strong> - Format your notes beautifully</li><li><strong>AI Integration</strong> - Get summaries, tags, glossary, and grammar checks</li><li><strong>End-to-End Encryption</strong> - Protect sensitive notes with passwords</li><li><strong>Dark Mode</strong> - Easy on the eyes, day or night</li><li><strong>Export Options</strong> - Download as Markdown, PDF, or Plain Text</li><li><strong>Timestamps</strong> - Track when notes are created and modified</li></ul><h2>🚀 Quick Start</h2><p>1. Click the <strong>+ New Note</strong> button to create a note</p><p>2. Use the toolbar to format your content</p><p>3. Try AI features by clicking the floating AI button</p><p>4. Pin important notes to keep them at the top</p><p>5. Lock sensitive notes with encryption</p><p><em>Start writing and let AI help you organize your thoughts!</em></p>',
+        content: '<h1>Welcome to Smart Notes! 👋</h1><p>Your intelligent note-taking companion with AI superpowers.</p><h2>✨ Features</h2><ul><li><strong>Rich Text Editing</strong> - Format your notes beautifully</li><li><strong>AI Integration</strong> - Get summaries, tags, glossary, and grammar checks</li><li><strong>End-to-End Encryption</strong> - Protect sensitive notes with passwords</li><li><strong>Dark Mode</strong> - Easy on the eyes, day or night</li><li><strong>Export Options</strong> - Download as Markdown, PDF, or Plain Text</li><li><strong>Timestamps</strong> - Track when notes are created and modified</li><li><strong>Translation</strong> - Translate notes to 20+ languages</li></ul><h2>🚀 Quick Start</h2><p>1. Click the <strong>+ New Note</strong> button to create a note</p><p>2. Use the toolbar to format your content</p><p>3. Try AI features by clicking the floating AI button</p><p>4. Pin important notes to keep them at the top</p><p>5. Lock sensitive notes with encryption</p><p>6. Translate notes to your preferred language</p><p><em>Start writing and let AI help you organize your thoughts!</em></p>',
         createdAt: now,
         updatedAt: now,
         createdBy: 'pkanotara',
@@ -477,6 +480,83 @@ function App() {
     addToast('Grammar error fixed!', 'success', 2000);
   };
 
+  // Translation handlers
+  const handleShowTranslationModal = () => {
+    console.log('🌐 Translation button clicked');
+    console.log('Active note:', activeNote);
+    
+    if (!activeNote) {
+      addToast('No note selected', 'warning');
+      return;
+    }
+
+    if (activeNote.isEncrypted) {
+      addToast('Cannot translate encrypted notes', 'warning');
+      return;
+    }
+
+    const div = document.createElement('div');
+    div.innerHTML = activeNote.content;
+    const text = div.textContent || div.innerText || '';
+
+    if (!text || text.trim().length < 10) {
+      addToast('Please add more content to translate', 'warning');
+      return;
+    }
+
+    console.log('✅ Opening translation modal');
+    setShowTranslationModal(true);
+  };
+
+  const handleTranslateNote = async (targetLanguage) => {
+    console.log('🌐 Starting translation to:', targetLanguage);
+    
+    if (!activeNote) {
+      addToast('No note selected', 'warning');
+      setShowTranslationModal(false);
+      return;
+    }
+
+    if (activeNote.isEncrypted) {
+      addToast('Cannot translate encrypted notes', 'warning');
+      setShowTranslationModal(false);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const text = activeNote.content;
+
+      if (!text || text.length < 10) {
+        addToast('Please add more content to translate', 'warning');
+        setLoading(false);
+        setShowTranslationModal(false);
+        return;
+      }
+
+      console.log('📝 Translating content...');
+      const translatedContent = await translationService.translateNote(text, targetLanguage);
+
+      if (!translatedContent) {
+        throw new Error('Translation failed');
+      }
+
+      console.log('✅ Translation successful');
+      
+      // Update note with translated content
+      updateNote({ content: translatedContent });
+
+      setShowTranslationModal(false);
+      setLoading(false);
+      addToast('Note translated successfully!', 'success');
+    } catch (error) {
+      console.error('❌ Translation Error:', error);
+      setLoading(false);
+      setShowTranslationModal(false);
+      addToast('Failed to translate: ' + error.message, 'error');
+    }
+  };
+
   const filteredNotes = notes.filter((note) => {
     if (!searchQuery) return true;
     const query = searchQuery.toLowerCase();
@@ -496,19 +576,58 @@ function App() {
     <div className="h-full flex flex-col bg-[#FAFAFA] dark:bg-[#0A0A0A]">
       <ToastContainer toasts={toasts} removeToast={removeToast} />
 
-      {/* Header - Professional Design */}
+      {/* Header */}
       <header className="border-b border-[#E5E5E5] dark:border-[#1F1F1F] bg-white/80 dark:bg-[#0F0F0F]/80 backdrop-blur-xl flex-shrink-0 relative z-50">
-        <div className="px-4 py-3">
+        {/* Mobile Header */}
+        <div className="lg:hidden px-4 py-3">
           <div className="flex items-center justify-between">
+            {/* Left side - Menu + Logo */}
             <div className="flex items-center gap-3">
               <button
                 onClick={() => setSidebarOpen(!sidebarOpen)}
-                className="lg:hidden p-2 rounded-lg hover:bg-[#F5F5F5] dark:hover:bg-[#1A1A1A] transition-colors"
+                className="p-2.5 rounded-xl hover:bg-[#F5F5F5] dark:hover:bg-[#1A1A1A] transition-all active:scale-95"
                 aria-label="Toggle menu"
               >
-                {sidebarOpen ? <X size={20} className="text-[#171717] dark:text-[#E5E5E5]" /> : <Menu size={20} className="text-[#171717] dark:text-[#E5E5E5]" />}
+                {sidebarOpen ? (
+                  <X size={22} className="text-[#171717] dark:text-[#E5E5E5]" />
+                ) : (
+                  <Menu size={22} className="text-[#171717] dark:text-[#E5E5E5]" />
+                )}
               </button>
               
+              <div className="flex items-center gap-2.5">
+                {/* Bigger Icon for Mobile */}
+                <div className="w-10 h-10 bg-gradient-to-br from-[#6366F1] to-[#8B5CF6] rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/30">
+                  <Sparkles className="text-white" size={20} />
+                </div>
+                <div>
+                  <h1 className="text-lg font-bold text-[#171717] dark:text-[#FAFAFA] tracking-tight leading-tight">
+                    Smart Notes
+                  </h1>
+                </div>
+              </div>
+            </div>
+
+            {/* Right side - Export + Dark Mode */}
+            <div className="flex items-center gap-1.5">
+              {activeNote && (
+                <button
+                  onClick={() => setShowExportMenu(true)}
+                  className="p-2.5 hover:bg-[#F5F5F5] dark:hover:bg-[#1A1A1A] rounded-xl transition-all text-[#525252] dark:text-[#A3A3A3] hover:text-[#171717] dark:hover:text-[#FAFAFA] active:scale-95"
+                  title="Export note"
+                >
+                  <Download size={20} />
+                </button>
+              )}
+              <DarkModeToggle />
+            </div>
+          </div>
+        </div>
+
+        {/* Desktop Header */}
+        <div className="hidden lg:block px-4 py-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
               <div className="flex items-center gap-2.5">
                 <div className="w-8 h-8 bg-gradient-to-br from-[#6366F1] to-[#8B5CF6] rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/20">
                   <Sparkles className="text-white" size={16} />
@@ -525,7 +644,7 @@ function App() {
               {activeNote && (
                 <button
                   onClick={() => setShowExportMenu(true)}
-                  className="hidden sm:flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-[#525252] dark:text-[#A3A3A3] hover:text-[#171717] dark:hover:text-[#FAFAFA] hover:bg-[#F5F5F5] dark:hover:bg-[#1A1A1A] rounded-lg transition-all"
+                  className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-[#525252] dark:text-[#A3A3A3] hover:text-[#171717] dark:hover:text-[#FAFAFA] hover:bg-[#F5F5F5] dark:hover:bg-[#1A1A1A] rounded-lg transition-all"
                   title="Export note"
                 >
                   <Download size={16} />
@@ -539,7 +658,7 @@ function App() {
       </header>
 
       <div className="flex-1 flex overflow-hidden relative">
-        {/* Sidebar - Professional Design */}
+        {/* Sidebar */}
         <div
           className={`
             fixed lg:relative inset-y-0 left-0 z-40
@@ -574,10 +693,10 @@ function App() {
           />
         )}
 
-        <div className="flex-1 flex flex-col overflow-hidden">
-          <div className="flex-1 p-3 lg:p-4 overflow-hidden">
-            {activeNote ? (
-              aiPanel.show ? (
+        <div className="flex-1 flex flex-col overflow-hidden relative">
+          {activeNote ? (
+            <div className="flex-1 p-3 lg:p-4 overflow-hidden">
+              {aiPanel.show ? (
                 <ResizableSplitPane
                   defaultSize={55}
                   minSize={30}
@@ -598,6 +717,7 @@ function App() {
                       onGrammarCheck={handleGrammarCheck}
                       onToggleEncryption={toggleEncryption}
                       onTogglePin={togglePin}
+                      onTranslate={handleShowTranslationModal}
                       isEncrypted={activeNote.isEncrypted}
                       isPinned={activeNote.isPinned}
                       glossaryTerms={glossaryTerms}
@@ -642,6 +762,7 @@ function App() {
                   onGrammarCheck={handleGrammarCheck}
                   onToggleEncryption={toggleEncryption}
                   onTogglePin={togglePin}
+                  onTranslate={handleShowTranslationModal}
                   isEncrypted={activeNote.isEncrypted}
                   isPinned={activeNote.isPinned}
                   glossaryTerms={glossaryTerms}
@@ -652,23 +773,45 @@ function App() {
                   createdBy={activeNote.createdBy}
                   updateNote={updateNote}
                 />
-              )
-            ) : (
-              <div className="h-full flex items-center justify-center">
-                <div className="text-center animate-fade-in max-w-md">
-                  <div className="w-20 h-20 mx-auto mb-5 bg-gradient-to-br from-[#6366F1] to-[#8B5CF6] rounded-2xl flex items-center justify-center shadow-2xl shadow-indigo-500/20">
-                    <Sparkles className="text-white" size={36} />
-                  </div>
-                  <h3 className="text-xl font-bold text-[#171717] dark:text-[#FAFAFA] mb-2">No note selected</h3>
-                  <p className="text-sm text-[#737373] dark:text-[#737373] mb-5">Create or select a note to get started</p>
-                  <button onClick={createNote} className="btn-primary">
-                    <Plus size={18} />
-                    Create Note
-                  </button>
+              )}
+            </div>
+          ) : (
+            // FIXED: Perfectly Centered Empty State with Absolute Positioning
+            <div className="absolute inset-0 flex items-center justify-center p-4 bg-[#FAFAFA] dark:bg-[#0A0A0A]">
+              <div className="text-center animate-fade-in max-w-md w-full">
+                {/* Icon */}
+                <div className="w-24 h-24 mx-auto mb-6 bg-gradient-to-br from-[#6366F1] to-[#8B5CF6] rounded-3xl flex items-center justify-center shadow-2xl shadow-indigo-500/30 animate-pulse-glow">
+                  <Sparkles className="text-white" size={44} />
+                </div>
+                
+                {/* Title */}
+                <h3 className="text-2xl font-bold text-[#171717] dark:text-[#FAFAFA] mb-3" style={{ letterSpacing: '-0.02em' }}>
+                  No note selected
+                </h3>
+                
+                {/* Description */}
+                <p className="text-sm text-[#737373] dark:text-[#A3A3A3] mb-8 leading-relaxed max-w-sm mx-auto">
+                  Create or select a note to get started with your smart note-taking experience
+                </p>
+                
+                {/* Create Button */}
+                <button 
+                  onClick={createNote} 
+                  className="inline-flex items-center justify-center gap-2 px-6 py-3.5 bg-gradient-to-r from-[#6366F1] to-[#8B5CF6] hover:from-[#5558E3] hover:to-[#7C3AED] text-white font-bold rounded-xl transition-all duration-200 shadow-xl shadow-indigo-500/30 hover:shadow-2xl hover:shadow-indigo-500/40 active:scale-[0.98] text-base"
+                >
+                  <Plus size={20} strokeWidth={2.5} />
+                  <span>Create Note</span>
+                </button>
+
+                {/* Decorative Elements */}
+                <div className="mt-12 flex items-center justify-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-[#6366F1]/30 animate-ping" style={{ animationDelay: '0ms' }}></div>
+                  <div className="w-2 h-2 rounded-full bg-[#8B5CF6]/30 animate-ping" style={{ animationDelay: '150ms' }}></div>
+                  <div className="w-2 h-2 rounded-full bg-[#6366F1]/30 animate-ping" style={{ animationDelay: '300ms' }}></div>
                 </div>
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -696,6 +839,17 @@ function App() {
         <ExportMenu
           note={activeNote}
           onClose={() => setShowExportMenu(false)}
+        />
+      )}
+
+      {showTranslationModal && (
+        <TranslationModal
+          onClose={() => {
+            console.log('🔴 Closing translation modal');
+            setShowTranslationModal(false);
+          }}
+          onTranslate={handleTranslateNote}
+          isTranslating={loading}
         />
       )}
     </div>

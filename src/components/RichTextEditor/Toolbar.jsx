@@ -1,8 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Bold, Italic, Underline,
   AlignLeft, AlignCenter, AlignRight,
-  Lock, Unlock, Pin, Trash2
+  Lock, Unlock, Pin, Trash2, Languages
 } from 'lucide-react';
 
 const Toolbar = ({
@@ -10,6 +10,7 @@ const Toolbar = ({
   onAlignLeft, onAlignCenter, onAlignRight,
   onFontSizeChange,
   onToggleEncryption, onTogglePin, onDelete,
+  onTranslate,
   isEncrypted, isPinned,
   currentFontSize = 'normal'
 }) => {
@@ -91,6 +92,23 @@ const Toolbar = ({
 
         {/* Row 2: Actions */}
         <div className="flex items-center gap-1">
+          {/* Bigger Translation Button for Mobile */}
+          <button
+            onClick={onTranslate}
+            disabled={isEncrypted}
+            className={`
+              flex items-center gap-2 px-3 py-2 rounded-lg transition-all font-semibold text-sm
+              ${isEncrypted 
+                ? 'bg-[#F5F5F5] dark:bg-[#1A1A1A] text-[#A3A3A3] cursor-not-allowed opacity-40' 
+                : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-lg shadow-blue-500/20'
+              }
+            `}
+            title="Translate Note"
+          >
+            <Languages size={16} />
+            <span>Translate</span>
+          </button>
+          
           <button
             onClick={onTogglePin}
             className={`p-2 rounded-lg transition-all ${
@@ -123,7 +141,7 @@ const Toolbar = ({
         </div>
       </div>
 
-      {/* Desktop: Original layout */}
+      {/* Desktop: Original layout with bigger translate button */}
       <div className="hidden md:block px-6 py-2.5">
         <div className="flex items-center gap-1">
           {/* Formatting buttons */}
@@ -197,7 +215,24 @@ const Toolbar = ({
           </select>
 
           {/* Actions */}
-          <div className="flex items-center gap-1 pl-3 border-l border-[#E5E5E5] dark:border-[#262626]">
+          <div className="flex items-center gap-2 pl-3 border-l border-[#E5E5E5] dark:border-[#262626]">
+            {/* Bigger, More Prominent Translation Button */}
+            <button
+              onClick={onTranslate}
+              disabled={isEncrypted}
+              className={`
+                flex items-center gap-2 px-4 py-2 rounded-lg transition-all font-bold text-sm
+                ${isEncrypted 
+                  ? 'bg-[#F5F5F5] dark:bg-[#1A1A1A] text-[#A3A3A3] cursor-not-allowed opacity-40' 
+                  : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-lg shadow-blue-500/20 hover:shadow-blue-500/30 active:scale-95'
+                }
+              `}
+              title="Translate Note"
+            >
+              <Languages size={18} />
+              <span>Translate</span>
+            </button>
+
             <button
               onClick={onTogglePin}
               className={`p-2 rounded-lg transition-all ${
