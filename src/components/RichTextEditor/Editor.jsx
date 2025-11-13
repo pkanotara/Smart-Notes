@@ -10,7 +10,6 @@ import {
   alignRight,
 } from "./EditorCommands";
 import { Edit2, CheckCircle, Clock, User, Unlock } from "lucide-react";
-// import { Edit2, CheckCircle, Clock, User, Unlock } from "lucide-react";
 import { storageService } from "../../services/storageService";
 
 const Editor = ({
@@ -24,7 +23,7 @@ const Editor = ({
   onGrammarCheck,
   onToggleEncryption,
   onTogglePin,
-  onTranslate, // Add this line
+  onTranslate,
   isEncrypted,
   isPinned,
   glossaryTerms,
@@ -51,23 +50,18 @@ const Editor = ({
   const contentRef = useRef(content);
   const isHighlightingRef = useRef(false);
   const [showTimestampTooltip, setShowTimestampTooltip] = useState(false);
-
-  // Get fontSize from note data
   const [currentFontSize, setCurrentFontSize] = useState("normal");
 
   useEffect(() => {
     setLocalTitle(title);
   }, [title, noteId]);
 
-  // Sync font size when note changes
   useEffect(() => {
-    // Get the active note's fontSize from localStorage
     const notes = storageService.loadNotes();
     const activeNote = notes.find((n) => n.id === noteId);
     const savedFontSize = activeNote?.fontSize || "normal";
     setCurrentFontSize(savedFontSize);
 
-    // Apply the font size class to editor
     if (editorRef.current) {
       editorRef.current.className = editorRef.current.className.replace(
         /font-size-\w+/g,
@@ -305,16 +299,13 @@ const Editor = ({
     }
   };
 
-  // Handle font size change for entire note
   const handleFontSizeChange = (size) => {
     setCurrentFontSize(size);
-    // Save font size to the note
     if (updateNote) {
       updateNote({ fontSize: size });
     }
 
     if (editorRef.current) {
-      // Apply font size class to editor
       editorRef.current.className = editorRef.current.className.replace(
         /font-size-\w+/g,
         ""
@@ -486,10 +477,10 @@ const Editor = ({
 
   if (isEncrypted) {
     return (
-      <div className="flex flex-col h-full card animate-fade-in">
-        <div className="px-6 sm:px-8 py-4">
+      <div className="flex flex-col h-full min-h-0 card animate-fade-in">
+        <div className="px-4 sm:px-6 py-3 sm:py-4 flex-shrink-0">
           <h2
-            className="text-2xl sm:text-3xl font-bold text-[#171717] dark:text-[#FAFAFA] truncate"
+            className="text-xl sm:text-2xl md:text-3xl font-bold text-[#171717] dark:text-[#FAFAFA] truncate"
             style={{ letterSpacing: "-0.02em" }}
             title={localTitle}
           >
@@ -508,16 +499,17 @@ const Editor = ({
           onToggleEncryption={onToggleEncryption}
           onTogglePin={onTogglePin}
           onDelete={onDelete}
+          onTranslate={() => {}}
           isEncrypted={isEncrypted}
           isPinned={isPinned}
           currentFontSize={currentFontSize}
         />
 
-        <div className="flex-1 flex items-center justify-center p-8">
+        <div className="flex-1 flex items-center justify-center p-6 sm:p-8 min-h-0 overflow-auto">
           <div className="text-center max-w-md animate-slide-up">
-            <div className="w-24 h-24 mx-auto mb-6 bg-gradient-to-br from-amber-400 to-orange-500 rounded-3xl flex items-center justify-center shadow-2xl shadow-amber-500/20">
+            <div className="w-20 h-20 sm:w-24 sm:h-24 mx-auto mb-4 sm:mb-6 bg-gradient-to-br from-amber-400 to-orange-500 rounded-3xl flex items-center justify-center shadow-2xl shadow-amber-500/20">
               <svg
-                className="w-14 h-14 text-white"
+                className="w-11 h-11 sm:w-14 sm:h-14 text-white"
                 fill="currentColor"
                 viewBox="0 0 20 20"
               >
@@ -530,26 +522,25 @@ const Editor = ({
             </div>
 
             <h3
-              className="text-2xl font-bold text-[#171717] dark:text-[#FAFAFA] mb-3"
+              className="text-xl sm:text-2xl font-bold text-[#171717] dark:text-[#FAFAFA] mb-2 sm:mb-3"
               style={{ letterSpacing: "-0.02em" }}
             >
               This note is encrypted
             </h3>
 
-            <p className="text-sm text-[#737373] dark:text-[#A3A3A3] mb-6 leading-relaxed">
+            <p className="text-xs sm:text-sm text-[#737373] dark:text-[#A3A3A3] mb-4 sm:mb-6 leading-relaxed px-4">
               Enter your password to unlock and view this note
             </p>
 
-            {/* Prominent Unlock Button */}
             <button
               onClick={onToggleEncryption}
-              className="w-full flex items-center justify-center gap-3 px-6 py-4 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white text-base font-bold rounded-2xl transition-all duration-200 shadow-2xl shadow-amber-500/30 hover:shadow-amber-500/50 active:scale-[0.98] mb-6"
+              className="w-full flex items-center justify-center gap-2 sm:gap-3 px-5 sm:px-6 py-3 sm:py-4 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white text-sm sm:text-base font-bold rounded-2xl transition-all duration-200 shadow-2xl shadow-amber-500/30 hover:shadow-amber-500/50 active:scale-[0.98] mb-4 sm:mb-6"
             >
-              <Unlock size={22} />
+              <Unlock size={20} />
               <span>Unlock Note</span>
             </button>
 
-            <div className="bg-[#F5F5F5] dark:bg-[#1A1A1A] border border-[#E5E5E5] dark:border-[#262626] rounded-xl p-4">
+            <div className="bg-[#F5F5F5] dark:bg-[#1A1A1A] border border-[#E5E5E5] dark:border-[#262626] rounded-xl p-3 sm:p-4">
               <p className="text-xs font-bold text-[#171717] dark:text-[#FAFAFA] mb-1">
                 🔐 AES-256 Encrypted
               </p>
@@ -560,7 +551,7 @@ const Editor = ({
           </div>
         </div>
 
-        <div className="px-6 sm:px-8 py-3 border-t border-[#E5E5E5] dark:border-[#1F1F1F] text-xs text-[#A3A3A3] dark:text-[#525252] flex justify-between items-center font-medium">
+        <div className="px-4 sm:px-6 py-2 sm:py-3 border-t border-[#E5E5E5] dark:border-[#1F1F1F] text-xs text-[#A3A3A3] dark:text-[#525252] flex justify-between items-center font-medium flex-shrink-0">
           <span>🔒 Encrypted</span>
           <span className="text-green-600 dark:text-green-500 font-semibold">
             Protected
@@ -571,11 +562,11 @@ const Editor = ({
   }
 
   return (
-    <div className="flex flex-col h-full card animate-fade-in relative">
-      {/* Title with Timestamp */}
-      <div className="px-6 sm:px-8 py-4 border-b border-[#E5E5E5] dark:border-[#1F1F1F]">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-          <div className="flex items-center gap-3 flex-1 min-w-0">
+    <div className="flex flex-col h-full min-h-0 card animate-fade-in relative">
+      {/* Header - Compact on Mobile */}
+      <div className="px-4 sm:px-6 py-3 border-b border-[#E5E5E5] dark:border-[#1F1F1F] flex-shrink-0">
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             {isEditingTitle ? (
               <input
                 ref={titleRef}
@@ -584,14 +575,14 @@ const Editor = ({
                 onChange={handleTitleChange}
                 onBlur={handleTitleBlur}
                 onKeyDown={handleTitleKeyDown}
-                className="flex-1 text-2xl sm:text-3xl font-bold bg-transparent border-none outline-none text-[#171717] dark:text-[#FAFAFA]"
+                className="flex-1 text-xl sm:text-2xl md:text-3xl font-bold bg-transparent border-none outline-none text-[#171717] dark:text-[#FAFAFA] min-w-0"
                 placeholder="Untitled"
                 style={{ letterSpacing: "-0.02em" }}
               />
             ) : (
               <h2
                 onClick={handleTitleEdit}
-                className="flex-1 text-2xl sm:text-3xl font-bold text-[#171717] dark:text-[#FAFAFA] cursor-text hover:text-[#525252] dark:hover:text-[#D4D4D4] transition-colors truncate"
+                className="flex-1 text-xl sm:text-2xl md:text-3xl font-bold text-[#171717] dark:text-[#FAFAFA] cursor-text hover:text-[#525252] dark:hover:text-[#D4D4D4] transition-colors truncate min-w-0"
                 style={{ letterSpacing: "-0.02em" }}
                 title={localTitle}
               >
@@ -606,44 +597,45 @@ const Editor = ({
               <Edit2 size={16} />
             </button>
           </div>
-        </div>
 
-        {/* Timestamp Info */}
-        <div className="mt-3 flex flex-wrap items-center gap-4 text-xs text-[#A3A3A3] dark:text-[#525252] font-medium">
-          <div
-            className="flex items-center gap-1.5 relative cursor-help"
-            onMouseEnter={() => setShowTimestampTooltip(true)}
-            onMouseLeave={() => setShowTimestampTooltip(false)}
-          >
-            <Clock size={12} />
-            <span>{storageService.formatTimestamp(updatedAt)}</span>
+          {/* Metadata - Hidden on very small screens */}
+          <div className="hidden sm:flex flex-wrap items-center gap-3 text-xs text-[#A3A3A3] dark:text-[#525252] font-medium">
+            <div
+              className="flex items-center gap-1.5 relative cursor-help"
+              onMouseEnter={() => setShowTimestampTooltip(true)}
+              onMouseLeave={() => setShowTimestampTooltip(false)}
+            >
+              <Clock size={12} />
+              <span>{storageService.formatTimestamp(updatedAt)}</span>
 
-            {showTimestampTooltip && (
-              <div className="hidden sm:block absolute bottom-full left-0 mb-2 bg-[#171717] dark:bg-[#FAFAFA] text-white dark:text-[#171717] px-3 py-2 rounded-lg text-xs whitespace-nowrap shadow-xl z-10">
-                <div className="space-y-1">
-                  <div>
-                    <strong>Created:</strong>{" "}
-                    {storageService.getFullTimestamp(createdAt)}
+              {showTimestampTooltip && (
+                <div className="hidden md:block absolute bottom-full left-0 mb-2 bg-[#171717] dark:bg-[#FAFAFA] text-white dark:text-[#171717] px-3 py-2 rounded-lg text-xs whitespace-nowrap shadow-xl z-10">
+                  <div className="space-y-1">
+                    <div>
+                      <strong>Created:</strong>{" "}
+                      {storageService.getFullTimestamp(createdAt)}
+                    </div>
+                    <div>
+                      <strong>Modified:</strong>{" "}
+                      {storageService.getFullTimestamp(updatedAt)}
+                    </div>
                   </div>
-                  <div>
-                    <strong>Modified:</strong>{" "}
-                    {storageService.getFullTimestamp(updatedAt)}
-                  </div>
+                  <div className="absolute top-full left-4 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-[#171717] dark:border-t-[#FAFAFA]"></div>
                 </div>
-                <div className="absolute top-full left-4 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-[#171717] dark:border-t-[#FAFAFA]"></div>
+              )}
+            </div>
+
+            {createdBy && (
+              <div className="flex items-center gap-1.5">
+                <User size={12} />
+                <span>@{createdBy}</span>
               </div>
             )}
           </div>
-
-          {createdBy && (
-            <div className="flex items-center gap-1.5">
-              <User size={12} />
-              <span>@{createdBy}</span>
-            </div>
-          )}
         </div>
       </div>
 
+      {/* Toolbar - Compact */}
       <Toolbar
         onBold={formatBold}
         onItalic={formatItalic}
@@ -655,20 +647,22 @@ const Editor = ({
         onToggleEncryption={onToggleEncryption}
         onTogglePin={onTogglePin}
         onDelete={onDelete}
-        onTranslate={onTranslate} // Add this line
+        onTranslate={onTranslate}
         isEncrypted={isEncrypted}
         isPinned={isPinned}
         currentFontSize={currentFontSize}
       />
 
+      {/* Selection Info */}
       {selectionInfo && (
-        <div className="px-6 sm:px-8 py-2 bg-[#6366F1]/5 dark:bg-[#6366F1]/10 border-b border-[#E5E5E5] dark:border-[#1F1F1F] text-xs text-[#6366F1] font-semibold">
+        <div className="px-4 sm:px-6 py-1.5 sm:py-2 bg-[#6366F1]/5 dark:bg-[#6366F1]/10 border-b border-[#E5E5E5] dark:border-[#1F1F1F] text-xs text-[#6366F1] font-semibold flex-shrink-0">
           ✓ {selectionInfo}
         </div>
       )}
 
+      {/* Grammar Errors Banner */}
       {grammarErrors.length > 0 && (
-        <div className="px-6 sm:px-8 py-2 bg-amber-50 dark:bg-amber-900/10 border-b border-amber-200 dark:border-amber-800/20 text-xs font-semibold flex items-center gap-2">
+        <div className="px-4 sm:px-6 py-1.5 sm:py-2 bg-amber-50 dark:bg-amber-900/10 border-b border-amber-200 dark:border-amber-800/20 text-xs font-semibold flex items-center gap-2 flex-shrink-0">
           <CheckCircle
             size={12}
             className="text-amber-600 dark:text-amber-500 flex-shrink-0"
@@ -683,15 +677,22 @@ const Editor = ({
         </div>
       )}
 
+      {/* Editor Content - Scrollable */}
       <div
-        ref={editorRef}
-        contentEditable={true}
-        onInput={handleInput}
-        className={`flex-1 px-6 sm:px-8 py-6 outline-none overflow-auto prose bg-white dark:bg-[#0A0A0A] font-size-${currentFontSize}`}
-        style={{ minHeight: "300px", caretColor: "currentColor" }}
-        suppressContentEditableWarning
-      />
+        className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden"
+        style={{ WebkitOverflowScrolling: 'touch' }}
+      >
+        <div
+          ref={editorRef}
+          contentEditable={true}
+          onInput={handleInput}
+          className={`px-4 sm:px-6 py-4 sm:py-6 outline-none prose min-h-[200px] sm:min-h-[300px] bg-white dark:bg-[#0A0A0A] font-size-${currentFontSize}`}
+          style={{ caretColor: "currentColor", wordBreak: 'break-word', overflowWrap: 'break-word' }}
+          suppressContentEditableWarning
+        />
+      </div>
 
+      {/* Grammar Tooltip */}
       {activeTooltip && (
         <>
           <div
@@ -700,20 +701,20 @@ const Editor = ({
           />
 
           <div
-            className="fixed z-50 bg-white dark:bg-[#171717] border-2 border-[#6366F1] rounded-xl shadow-2xl p-4 pointer-events-auto"
+            className="fixed z-50 bg-white dark:bg-[#171717] border-2 border-[#6366F1] rounded-xl shadow-2xl p-3 sm:p-4 pointer-events-auto"
             style={{
               left: `${activeTooltip.position.x}px`,
               top: `${activeTooltip.position.y}px`,
               transform: "translate(-50%, calc(-100% - 10px))",
               maxWidth: "90vw",
-              width: "300px",
+              width: "280px",
             }}
             onMouseEnter={handleTooltipMouseEnter}
             onMouseLeave={handleTooltipMouseLeave}
           >
-            <div className="space-y-3">
+            <div className="space-y-2 sm:space-y-3">
               <div className="flex items-start gap-2">
-                <span className="text-red-500 flex-shrink-0 mt-0.5 font-bold">
+                <span className="text-red-500 flex-shrink-0 mt-0.5 font-bold text-sm">
                   ✕
                 </span>
                 <p className="text-xs text-red-700 dark:text-red-400 font-semibold leading-relaxed">
@@ -721,7 +722,7 @@ const Editor = ({
                 </p>
               </div>
               <div className="flex items-start gap-2 pt-2 border-t border-[#E5E5E5] dark:border-[#262626]">
-                <span className="text-green-500 flex-shrink-0 mt-0.5 font-bold">
+                <span className="text-green-500 flex-shrink-0 mt-0.5 font-bold text-sm">
                   ✓
                 </span>
                 <p className="text-xs text-green-700 dark:text-green-400 font-semibold leading-relaxed">
@@ -730,7 +731,7 @@ const Editor = ({
               </div>
               <button
                 onClick={handleFixError}
-                className="w-full mt-2 flex items-center justify-center gap-2 px-4 py-2.5 bg-[#6366F1] hover:bg-[#5558E3] text-white text-xs font-bold rounded-lg transition-all active:scale-95 shadow-lg"
+                className="w-full mt-2 flex items-center justify-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-[#6366F1] hover:bg-[#5558E3] text-white text-xs font-bold rounded-lg transition-all active:scale-95 shadow-lg"
               >
                 <CheckCircle size={14} />
                 Fix This Error
@@ -740,7 +741,8 @@ const Editor = ({
         </>
       )}
 
-      <div className="px-6 sm:px-8 py-3 border-t border-[#E5E5E5] dark:border-[#1F1F1F] text-xs text-[#A3A3A3] dark:text-[#525252] flex justify-between items-center font-medium">
+      {/* Footer - Compact */}
+      <div className="px-4 sm:px-6 py-2 border-t border-[#E5E5E5] dark:border-[#1F1F1F] text-xs text-[#A3A3A3] dark:text-[#525252] flex justify-between items-center font-medium flex-shrink-0">
         <span className="truncate">{getWordCount()}</span>
         {isPinned && (
           <span className="text-[#6366F1] font-semibold flex items-center gap-1 flex-shrink-0 ml-2">
@@ -752,14 +754,18 @@ const Editor = ({
         )}
       </div>
 
-      {/* AI Floating Menu */}
-      <AIFloatingMenu
-        onAISummary={onAISummary}
-        onAITags={onAITags}
-        onGlossary={onGlossary}
-        onGrammarCheck={onGrammarCheck}
-        isEncrypted={isEncrypted}
-      />
+      {/* AI Floating Menu - Lower z-index on mobile */}
+      {!isEncrypted && (
+        <div className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-30 sm:z-40">
+          <AIFloatingMenu
+            onAISummary={onAISummary}
+            onAITags={onAITags}
+            onGlossary={onGlossary}
+            onGrammarCheck={onGrammarCheck}
+            isEncrypted={isEncrypted}
+          />
+        </div>
+      )}
     </div>
   );
 };
