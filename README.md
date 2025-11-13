@@ -1,6 +1,3 @@
-Here's a **minimal and simple** README.md for your Smart Notes project:
-
-```markdown name=README.md
 # ✨ Smart Notes
 
 > AI-powered note-taking application with encryption, translation, and smart features
