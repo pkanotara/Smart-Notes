@@ -6,7 +6,7 @@
 
 > A production-ready, full-featured note-taking application with custom rich text editor, multi-AI provider integration, military-grade encryption, and multi-language translation capabilities.
 
-**🔗 Live Demo:** [https://smart-notes-pkanotara.netlify.app](https://smart-notes-pkanotara.netlify.app)
+**🔗 Live Demo:** [https://smart-notes-pkanotara.netlify.app][([https://smart-notes-pkanotara.netlify.app](https://smart-notex.netlify.](https://smart-notex.netlify.app/)
 
 **👨‍💻 Developer:** [@pkanotara](https://github.com/pkanotara)
 
