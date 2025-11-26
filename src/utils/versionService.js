@@ -6,13 +6,40 @@
 const MAX_VERSIONS_PER_NOTE = 50; // Maximum number of versions to keep per note
 
 /**
+ * Generate a unique version ID
+ * @returns {string} - Unique version ID
+ */
+const generateVersionId = () => {
+  return `v-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
+};
+
+/**
+ * Strip HTML tags from content and return plain text
+ * @param {string} html - HTML content
+ * @returns {string} - Plain text content
+ */
+const stripHtml = (html) => {
+  if (!html) return '';
+  
+  const div = typeof document !== 'undefined'
+    ? document.createElement('div')
+    : { textContent: html.replace(/<[^>]*>/g, ' ') };
+  
+  if (typeof document !== 'undefined') {
+    div.innerHTML = html;
+  }
+  
+  return (div.textContent || div.innerText || '').trim();
+};
+
+/**
  * Create a version snapshot of a note
  * @param {Object} note - The note object
  * @returns {Object} - Version snapshot
  */
 export const createVersionSnapshot = (note) => {
   return {
-    versionId: `v-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    versionId: generateVersionId(),
     timestamp: Date.now(),
     title: note.title,
     content: note.content,
@@ -31,7 +58,7 @@ export const addVersion = (note, previousState) => {
   
   // Create a snapshot of the previous state
   const snapshot = {
-    versionId: `v-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    versionId: generateVersionId(),
     timestamp: Date.now(),
     title: previousState.title,
     content: previousState.content,
@@ -142,16 +169,7 @@ export const formatVersionTimestamp = (timestamp) => {
 export const getVersionPreview = (version, maxLength = 100) => {
   if (!version.content) return 'Empty content';
   
-  // Create a temporary element to extract text
-  const div = typeof document !== 'undefined'
-    ? document.createElement('div')
-    : { textContent: version.content.replace(/<[^>]*>/g, ' ') };
-  
-  if (typeof document !== 'undefined') {
-    div.innerHTML = version.content;
-  }
-  
-  const text = (div.textContent || div.innerText || '').trim();
+  const text = stripHtml(version.content);
   
   if (text.length <= maxLength) {
     return text;
@@ -171,21 +189,8 @@ export const hasSignificantChange = (oldContent, newContent) => {
   if (oldContent && !newContent) return true;
   if (oldContent === newContent) return false;
   
-  // Strip HTML tags for comparison
-  const stripHtml = (html) => {
-    const div = typeof document !== 'undefined'
-      ? document.createElement('div')
-      : { textContent: html.replace(/<[^>]*>/g, ' ') };
-    
-    if (typeof document !== 'undefined') {
-      div.innerHTML = html;
-    }
-    
-    return (div.textContent || div.innerText || '').trim();
-  };
-  
-  const oldText = stripHtml(oldContent || '');
-  const newText = stripHtml(newContent || '');
+  const oldText = stripHtml(oldContent);
+  const newText = stripHtml(newContent);
   
   // If text content is the same, it's just formatting change
   if (oldText === newText) return false;
