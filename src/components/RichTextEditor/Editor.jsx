@@ -9,7 +9,7 @@ import {
   alignCenter,
   alignRight,
 } from "./EditorCommands";
-import { Edit2, CheckCircle, Clock, User, Unlock } from "lucide-react";
+import { Edit2, CheckCircle, Clock, User, Unlock, History } from "lucide-react";
 import { storageService } from "../../services/storageService";
 
 const Editor = ({
@@ -24,6 +24,7 @@ const Editor = ({
   onToggleEncryption,
   onTogglePin,
   onTranslate,
+  onShowVersionHistory,
   isEncrypted,
   isPinned,
   glossaryTerms,
@@ -35,6 +36,7 @@ const Editor = ({
   createdAt,
   updatedAt,
   createdBy,
+  versionCount = 0,
   updateNote,
 }) => {
   const editorRef = useRef(null);
@@ -630,6 +632,18 @@ const Editor = ({
                 <User size={12} />
                 <span>@{createdBy}</span>
               </div>
+            )}
+
+            {/* Version History Button */}
+            {versionCount > 0 && onShowVersionHistory && (
+              <button
+                onClick={onShowVersionHistory}
+                className="flex items-center gap-1.5 px-2 py-1 hover:bg-[#F5F5F5] dark:hover:bg-[#1A1A1A] rounded-md transition-colors text-[#6366F1] dark:text-[#818CF8]"
+                title="View version history"
+              >
+                <History size={12} />
+                <span>{versionCount} {versionCount === 1 ? 'version' : 'versions'}</span>
+              </button>
             )}
           </div>
         </div>

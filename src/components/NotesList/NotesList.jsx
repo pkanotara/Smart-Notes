@@ -1,13 +1,11 @@
 import React from 'react';
 import { Trash2, Pin, Lock, Calendar } from 'lucide-react';
 import { storageService } from '../../services/storageService';
+import { sortService } from '../../utils/sortService';
+import SortDropdown from '../SortDropdown/SortDropdown';
 
-const NotesList = ({ notes, activeNoteId, onSelectNote, onCreateNote, onDeleteNote }) => {
-  const sortedNotes = [...notes].sort((a, b) => {
-    if (a.isPinned && !b.isPinned) return -1;
-    if (!a.isPinned && b.isPinned) return 1;
-    return b.updatedAt - a.updatedAt;
-  });
+const NotesList = ({ notes, activeNoteId, onSelectNote, onCreateNote, onDeleteNote, sortOption, onSortChange }) => {
+  const sortedNotes = sortService.sortNotes(notes, sortOption);
 
   const handleDelete = (e, noteId) => {
     e.stopPropagation();
@@ -27,15 +25,18 @@ const NotesList = ({ notes, activeNoteId, onSelectNote, onCreateNote, onDeleteNo
     <div className="h-full flex flex-col bg-transparent">
       {/* New Note Button */}
       <div className="p-3 border-b border-[#E5E5E5] dark:border-[#1F1F1F]">
-        <button
-          onClick={onCreateNote}
-          className="w-full bg-gradient-to-r from-[#6366F1] to-[#8B5CF6] hover:from-[#5558E3] hover:to-[#7C3AED] text-white font-semibold py-2.5 rounded-xl transition-all duration-200 shadow-lg shadow-indigo-500/20 hover:shadow-xl hover:shadow-indigo-500/30 active:scale-[0.98] flex items-center justify-center gap-2"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
-          </svg>
-          <span className="text-sm">New Note</span>
-        </button>
+        <div className="flex items-center gap-2 mb-2">
+          <button
+            onClick={onCreateNote}
+            className="flex-1 bg-gradient-to-r from-[#6366F1] to-[#8B5CF6] hover:from-[#5558E3] hover:to-[#7C3AED] text-white font-semibold py-2.5 rounded-xl transition-all duration-200 shadow-lg shadow-indigo-500/20 hover:shadow-xl hover:shadow-indigo-500/30 active:scale-[0.98] flex items-center justify-center gap-2"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
+            </svg>
+            <span className="text-sm">New Note</span>
+          </button>
+          <SortDropdown currentSort={sortOption} onSortChange={onSortChange} />
+        </div>
       </div>
 
       {/* Notes List */}
