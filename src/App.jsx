@@ -9,10 +9,13 @@ import ToastContainer from './components/Toast/ToastContainer';
 import DarkModeToggle from './components/DarkMode/DarkModeToggle';
 import ExportMenu from './components/ExportMenu/ExportMenu';
 import TranslationModal from './components/Translation/TranslationModal';
+import VersionHistory from './components/VersionHistory/VersionHistory';
 import { storageService } from './services/storageService';
 import { encryptionService } from './services/encryptionService';
 import { aiService } from './services/aiService';
 import { translationService } from './services/translationService';
+import { sortService } from './utils/sortService';
+import { versionService } from './utils/versionService';
 import { useToast } from './hooks/useToast';
 import { Loader2, Menu, X, Plus, Sparkles, Download } from 'lucide-react';
 
@@ -30,7 +33,15 @@ function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [showTranslationModal, setShowTranslationModal] = useState(false);
+  const [showVersionHistory, setShowVersionHistory] = useState(false);
+  const [sortOption, setSortOption] = useState(() => sortService.loadSortPreference());
   const { toasts, addToast, removeToast } = useToast();
+
+  // Handle sort option change
+  const handleSortChange = (newSortOption) => {
+    setSortOption(newSortOption);
+    sortService.saveSortPreference(newSortOption);
+  };
 
   useEffect(() => {
     console.log('🔄 Loading notes from storage...');
@@ -38,14 +49,19 @@ function App() {
     console.log('📦 Loaded notes:', loadedNotes);
     
     if (loadedNotes && loadedNotes.length > 0) {
-      setNotes(loadedNotes);
-      setActiveNoteId(loadedNotes[0].id);
+      // Migrate existing notes to include versions array if missing
+      const migratedNotes = loadedNotes.map(note => ({
+        ...note,
+        versions: note.versions || [],
+      }));
+      setNotes(migratedNotes);
+      setActiveNoteId(migratedNotes[0].id);
     } else {
       const now = Date.now();
       const welcomeNote = {
         id: now.toString(),
         title: 'Welcome to Smart Notes ✨',
-        content: '<h1>Welcome to Smart Notes! 👋</h1><p>Your intelligent note-taking companion with AI superpowers.</p><h2>✨ Features</h2><ul><li><strong>Rich Text Editing</strong> - Format your notes beautifully</li><li><strong>AI Integration</strong> - Get summaries, tags, glossary, and grammar checks</li><li><strong>End-to-End Encryption</strong> - Protect sensitive notes with passwords</li><li><strong>Dark Mode</strong> - Easy on the eyes, day or night</li><li><strong>Export Options</strong> - Download as Markdown, PDF, or Plain Text</li><li><strong>Timestamps</strong> - Track when notes are created and modified</li><li><strong>Translation</strong> - Translate notes to 20+ languages</li></ul><h2>🚀 Quick Start</h2><p>1. Click the <strong>+ New Note</strong> button to create a note</p><p>2. Use the toolbar to format your content</p><p>3. Try AI features by clicking the floating AI button</p><p>4. Pin important notes to keep them at the top</p><p>5. Lock sensitive notes with encryption</p><p>6. Translate notes to your preferred language</p><p><em>Start writing and let AI help you organize your thoughts!</em></p>',
+        content: '<h1>Welcome to Smart Notes! 👋</h1><p>Your intelligent note-taking companion with AI superpowers.</p><h2>✨ Features</h2><ul><li><strong>Rich Text Editing</strong> - Format your notes beautifully</li><li><strong>AI Integration</strong> - Get summaries, tags, glossary, and grammar checks</li><li><strong>End-to-End Encryption</strong> - Protect sensitive notes with passwords</li><li><strong>Dark Mode</strong> - Easy on the eyes, day or night</li><li><strong>Export Options</strong> - Download as Markdown, PDF, or Plain Text</li><li><strong>Timestamps</strong> - Track when notes are created and modified</li><li><strong>Translation</strong> - Translate notes to 20+ languages</li><li><strong>Sort Options</strong> - Sort notes by date, title, or last modified</li><li><strong>Version History</strong> - Roll back to any previous version of a note</li></ul><h2>🚀 Quick Start</h2><p>1. Click the <strong>+ New Note</strong> button to create a note</p><p>2. Use the toolbar to format your content</p><p>3. Try AI features by clicking the floating AI button</p><p>4. Pin important notes to keep them at the top</p><p>5. Lock sensitive notes with encryption</p><p>6. Translate notes to your preferred language</p><p>7. Use the Sort button to organize your notes</p><p>8. Click the History button to view and restore previous versions</p><p><em>Start writing and let AI help you organize your thoughts!</em></p>',
         createdAt: now,
         updatedAt: now,
         createdBy: 'pkanotara',
@@ -53,6 +69,7 @@ function App() {
         isEncrypted: false,
         tags: ['welcome', 'tutorial'],
         fontSize: 'normal',
+        versions: [],
       };
       setNotes([welcomeNote]);
       setActiveNoteId(welcomeNote.id);
@@ -99,6 +116,7 @@ function App() {
       isEncrypted: false,
       tags: [],
       fontSize: 'normal',
+      versions: [],
     };
     
     console.log('➕ Creating new note:', newNote);
@@ -114,11 +132,30 @@ function App() {
 
   const updateNote = (updates) => {
     console.log('📝 Updating note:', activeNoteId, updates);
-    setNotes(prevNotes => prevNotes.map((note) =>
-      note.id === activeNoteId
-        ? { ...note, ...updates, updatedAt: Date.now() }
-        : note
-    ));
+    setNotes(prevNotes => prevNotes.map((note) => {
+      if (note.id !== activeNoteId) return note;
+      
+      // Check if this is a significant content or title change
+      const hasContentChange = updates.content && versionService.hasSignificantChange(note.content, updates.content);
+      const hasTitleChange = updates.title && updates.title !== note.title;
+      
+      // If significant change, save current state to version history
+      let newVersions = note.versions || [];
+      if (hasContentChange || hasTitleChange) {
+        newVersions = versionService.addVersion(note, {
+          title: note.title,
+          content: note.content,
+          tags: note.tags,
+        });
+      }
+      
+      return {
+        ...note,
+        ...updates,
+        updatedAt: Date.now(),
+        versions: newVersions,
+      };
+    }));
   };
 
   const deleteNote = (id) => {
@@ -557,6 +594,34 @@ function App() {
     }
   };
 
+  // Version history handlers
+  const handleShowVersionHistory = () => {
+    if (!activeNote) {
+      addToast('No note selected', 'warning');
+      return;
+    }
+    
+    if (activeNote.isEncrypted) {
+      addToast('Cannot view history of encrypted notes', 'warning');
+      return;
+    }
+    
+    setShowVersionHistory(true);
+  };
+
+  const handleRestoreVersion = (version) => {
+    if (!activeNote) return;
+    
+    // Restore the note to the selected version
+    const restoredNote = versionService.restoreVersion(activeNote, version);
+    
+    setNotes(prevNotes => prevNotes.map(note => 
+      note.id === activeNoteId ? restoredNote : note
+    ));
+    
+    addToast('Note restored to previous version!', 'success');
+  };
+
   const filteredNotes = notes.filter((note) => {
     if (!searchQuery) return true;
     const query = searchQuery.toLowerCase();
@@ -682,6 +747,8 @@ function App() {
               onSelectNote={handleSelectNote}
               onCreateNote={createNote}
               onDeleteNote={deleteNote}
+              sortOption={sortOption}
+              onSortChange={handleSortChange}
             />
           </div>
         </div>
@@ -718,6 +785,7 @@ function App() {
                       onToggleEncryption={toggleEncryption}
                       onTogglePin={togglePin}
                       onTranslate={handleShowTranslationModal}
+                      onShowVersionHistory={handleShowVersionHistory}
                       isEncrypted={activeNote.isEncrypted}
                       isPinned={activeNote.isPinned}
                       glossaryTerms={glossaryTerms}
@@ -726,6 +794,7 @@ function App() {
                       createdAt={activeNote.createdAt}
                       updatedAt={activeNote.updatedAt}
                       createdBy={activeNote.createdBy}
+                      versionCount={(activeNote.versions || []).length}
                       updateNote={updateNote}
                     />
                   }
@@ -763,6 +832,7 @@ function App() {
                   onToggleEncryption={toggleEncryption}
                   onTogglePin={togglePin}
                   onTranslate={handleShowTranslationModal}
+                  onShowVersionHistory={handleShowVersionHistory}
                   isEncrypted={activeNote.isEncrypted}
                   isPinned={activeNote.isPinned}
                   glossaryTerms={glossaryTerms}
@@ -771,6 +841,7 @@ function App() {
                   createdAt={activeNote.createdAt}
                   updatedAt={activeNote.updatedAt}
                   createdBy={activeNote.createdBy}
+                  versionCount={(activeNote.versions || []).length}
                   updateNote={updateNote}
                 />
               )}
@@ -850,6 +921,14 @@ function App() {
           }}
           onTranslate={handleTranslateNote}
           isTranslating={loading}
+        />
+      )}
+
+      {showVersionHistory && activeNote && (
+        <VersionHistory
+          note={activeNote}
+          onRestore={handleRestoreVersion}
+          onClose={() => setShowVersionHistory(false)}
         />
       )}
     </div>
