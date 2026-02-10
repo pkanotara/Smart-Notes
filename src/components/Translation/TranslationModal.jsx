@@ -1,125 +1,92 @@
-import React, { useState } from 'react';
-import { X, Languages, Loader2, Globe } from 'lucide-react';
-import { LANGUAGES } from '../../services/translationService';
+import React, { useState } from "react";
+import { X, Languages, Loader2, Globe } from "lucide-react";
+import { LANGUAGES } from "../../services/translationService";
 
 const TranslationModal = ({ onClose, onTranslate, isTranslating }) => {
-  const [selectedLanguage, setSelectedLanguage] = useState('');
-  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedLang, setSelectedLang] = useState("");
+  const [search, setSearch] = useState("");
 
-  const filteredLanguages = LANGUAGES.filter(lang =>
-    lang.name.toLowerCase().includes(searchQuery.toLowerCase())
+  const languagefilter = LANGUAGES.filter((l) =>
+    l.name.toLowerCase().includes(search.toLowerCase())
   );
 
-  const handleTranslate = () => {
-    if (selectedLanguage) {
-      onTranslate(selectedLanguage);
-    }
-  };
-
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-white dark:bg-[#171717] rounded-2xl shadow-2xl max-w-lg w-full border border-[#E5E5E5] dark:border-[#262626] animate-slide-up">
+    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-white dark:bg-[#171717] rounded-2xl shadow-xl w-full max-w-md animate-slide-up">
+        
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-[#E5E5E5] dark:border-[#262626]">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/20">
-              <Globe className="text-white" size={24} />
-            </div>
-            <div>
-              <h2 className="text-xl font-bold text-[#171717] dark:text-[#FAFAFA]">Translate Note</h2>
-              <p className="text-xs text-[#737373] dark:text-[#A3A3A3]">Select your target language</p>
-            </div>
-          </div>
-          <button
-            onClick={onClose}
-            className="p-2 hover:bg-[#F5F5F5] dark:hover:bg-[#1A1A1A] rounded-lg transition-colors"
-            disabled={isTranslating}
-          >
-            <X size={20} className="text-[#737373] dark:text-[#A3A3A3]" />
-          </button>
+        <div className="flex items-center justify-between p-5 border-b border-black/10 dark:border-white/10">
+          <h2 className="text-lg font-bold flex items-center gap-2 text-gray-900 dark:text-gray-100">
+            <Globe size={20} className="text-blue-500" />Let's Translate
+          </h2>
         </div>
 
         {/* Search */}
-        <div className="p-4 border-b border-[#E5E5E5] dark:border-[#262626]">
-          <div className="relative">
-            <Globe className="absolute left-3 top-1/2 -translate-y-1/2 text-[#A3A3A3] dark:text-[#525252]" size={18} />
-            <input
-              type="text"
-              placeholder="Search languages..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-3 bg-[#F5F5F5] dark:bg-[#1A1A1A] text-[#171717] dark:text-[#E5E5E5] rounded-xl border border-[#E5E5E5] dark:border-[#262626] focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder:text-[#A3A3A3] dark:placeholder:text-[#525252] text-sm font-medium"
-              disabled={isTranslating}
-            />
-          </div>
+        <div className="p-4">
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search language..."
+            disabled={isTranslating}
+            className="w-full px-4 py-2 rounded-xl bg-gray-100 dark:bg-[#1a1a1a] text-gray-800 dark:text-gray-200 outline-none focus:ring-2 focus:ring-blue-500"
+          />
         </div>
 
-        {/* Language Grid */}
-        <div className="p-4 max-h-96 overflow-y-auto">
-          <div className="grid grid-cols-2 gap-3">
-            {filteredLanguages.map((lang) => (
+        {/* Language List */}
+        <div className="p-4 max-h-80 overflow-y-auto grid grid-cols-2 gap-3">
+          {languagefilter.length > 0 ? (
+            languagefilter.map((lang) => (
               <button
                 key={lang.code}
-                onClick={() => setSelectedLanguage(lang.code)}
+                onClick={() => setSelectedLang(lang.code)}
                 disabled={isTranslating}
-                className={`
-                  flex items-center gap-3 p-4 rounded-xl text-left transition-all duration-200
-                  ${selectedLanguage === lang.code
-                    ? 'bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-500/30 scale-105'
-                    : 'bg-[#F5F5F5] dark:bg-[#1A1A1A] text-[#171717] dark:text-[#E5E5E5] hover:bg-[#E5E5E5] dark:hover:bg-[#262626] hover:scale-[1.02]'
-                  }
-                  ${isTranslating ? 'opacity-50 cursor-not-allowed' : ''}
-                `}
+                className={`flex items-center gap-2 p-3 rounded-xl transition
+                  ${
+                    selectedLang === lang.code
+                      ? "bg-blue-600 text-white"
+                      : "bg-gray-100 dark:bg-[#1a1a1a] text-gray-800 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-[#2a2a2a]"
+                  }`}
               >
-                <span className="text-3xl">{lang.flag}</span>
-                <div className="flex-1">
-                  <span className="font-bold text-sm block">{lang.name}</span>
-                </div>
-                {selectedLanguage === lang.code && (
-                  <svg className="w-5 h-5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                  </svg>
-                )}
+                <span className="text-2xl">{lang.flag}</span>
+                <span className="font-medium text-sm">{lang.name}</span>
               </button>
-            ))}
-          </div>
-
-          {filteredLanguages.length === 0 && (
-            <div className="text-center py-12">
-              <Globe className="w-12 h-12 mx-auto mb-3 text-[#A3A3A3] dark:text-[#525252]" />
-              <p className="text-sm text-[#737373] dark:text-[#A3A3A3] font-medium">No languages found</p>
-              <p className="text-xs text-[#A3A3A3] dark:text-[#525252] mt-1">Try a different search</p>
-            </div>
+            ))
+          ) : (
+            <p className="col-span-2 text-center text-sm text-gray-500 py-10">
+              No languages found
+            </p>
           )}
         </div>
 
         {/* Footer */}
-        <div className="p-4 border-t border-[#E5E5E5] dark:border-[#262626] flex gap-3">
+        <div className="p-4 flex gap-3 border-t border-black/10 dark:border-white/10">
           <button
             onClick={onClose}
             disabled={isTranslating}
-            className="flex-1 px-4 py-3 bg-[#F5F5F5] dark:bg-[#1A1A1A] text-[#171717] dark:text-[#E5E5E5] rounded-xl font-bold hover:bg-[#E5E5E5] dark:hover:bg-[#262626] transition-all disabled:opacity-50 text-sm"
+            className="flex-1 py-2 rounded-xl bg-gray-200 dark:bg-[#1a1a1a]"
           >
             Cancel
           </button>
+
           <button
-            onClick={handleTranslate}
-            disabled={!selectedLanguage || isTranslating}
-            className="flex-1 px-4 py-3 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-xl font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-blue-500/20 text-sm"
+            disabled={!selectedLang || isTranslating}
+            onClick={() => onTranslate(selectedLang)}
+            className="flex-1 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center gap-2 disabled:opacity-50"
           >
             {isTranslating ? (
               <>
-                <Loader2 className="animate-spin" size={18} />
-                <span>Translating...</span>
+                <Loader2 size={18} className="animate-spin" />
+                Translating...
               </>
             ) : (
               <>
                 <Languages size={18} />
-                <span>Translate Now</span>
+                Translate
               </>
             )}
           </button>
         </div>
+
       </div>
     </div>
   );

@@ -12,7 +12,7 @@ export const exportToText = (note) => {
   const div = document.createElement('div');
   div.innerHTML = note.content;
   
-  let text = `${note.title}\n${'='.repeat(note.title.length)}\n\n`;
+  let text = `${note.title}\n\n`;
   text += div.innerText || div.textContent;
   
   return text;

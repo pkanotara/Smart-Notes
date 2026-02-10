@@ -1,19 +1,10 @@
 const GROQ_API_KEY_PRIMARY = import.meta.env.VITE_GROQ_API_KEY_PRIMARY;
 const GROQ_API_KEY_SECONDARY = import.meta.env.VITE_GROQ_API_KEY_SECONDARY;
-const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
+const GEMINI_API_KEY_1 = import.meta.env.VITE_GEMINI_1_API_KEY;
+const GEMINI_API_KEY_2 = import.meta.env.VITE_GEMINI_2_API_KEY;
 const DEEPSEEK_API_KEY = import.meta.env.VITE_DEEPSEEK_API_KEY;
 const OPENROUTER_API_KEY = import.meta.env.VITE_OPENROUTER_API_KEY;
 
-const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
-const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
-const DEEPSEEK_API_URL = 'https://api.deepseek.com/v1/chat/completions';
-const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
-
-const GROQ_MODEL = 'llama-3.3-70b-versatile';
-const DEEPSEEK_MODEL = 'deepseek-chat';
-const OPENROUTER_MODEL = 'meta-llama/llama-3.1-8b-instruct:free';
-
-// Popular languages
 export const LANGUAGES = [
   { code: 'en', name: 'English', flag: '🇬🇧' },
   { code: 'hi', name: 'Hindi', flag: '🇮🇳' },
@@ -29,233 +20,217 @@ export const LANGUAGES = [
   { code: 'it', name: 'Italian', flag: '🇮🇹' },
 ];
 
-// Helper: Wait/delay
 const wait = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
-class TranslationService {
-  constructor() {
-    this.currentApiKeyIndex = 0;
-    this.groqApiKeys = [GROQ_API_KEY_PRIMARY, GROQ_API_KEY_SECONDARY].filter(Boolean);
+const groqKeys = [GROQ_API_KEY_PRIMARY, GROQ_API_KEY_SECONDARY].filter(k => k?.length > 10);
+const geminiKeys = [GEMINI_API_KEY_1, GEMINI_API_KEY_2].filter(k => k?.length > 10);
+let groqIndex = 0;
+let geminiIndex = 0;
+
+// Split text into chunks
+const splitIntoChunks = (text, maxSize = 3000) => {
+  if (text.length <= maxSize) return [text];
+
+  const chunks = [];
+  const paragraphs = text.split('\n');
+  let current = '';
+
+  for (const p of paragraphs) {
+    if ((current + p).length > maxSize && current) {
+      chunks.push(current.trim());
+      current = p + '\n';
+    } else {
+      current += p + '\n';
+    }
   }
 
-  // Split text into chunks
-  splitIntoChunks(text, maxChunkSize = 3000) {
-    if (text.length <= maxChunkSize) {
-      return [text];
-    }
+  if (current.trim()) chunks.push(current.trim());
+  return chunks;
+};
 
-    const chunks = [];
-    const paragraphs = text.split('\n');
-    let currentChunk = '';
+// Groq
+const callGroq = async (prompt) => {
+  for (let i = 0; i < groqKeys.length; i++) {
+    try {
+      const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${groqKeys[groqIndex]}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'llama-3.3-70b-versatile',
+          messages: [
+            { role: 'system', content: 'You are a professional translator. Return ONLY the translation.' },
+            { role: 'user', content: prompt }
+          ],
+          temperature: 0.2,
+          max_tokens: 4096,
+        }),
+      });
 
-    for (const paragraph of paragraphs) {
-      if ((currentChunk + paragraph).length > maxChunkSize && currentChunk) {
-        chunks.push(currentChunk.trim());
-        currentChunk = paragraph + '\n';
-      } else {
-        currentChunk += paragraph + '\n';
-      }
-    }
-
-    if (currentChunk.trim()) {
-      chunks.push(currentChunk.trim());
-    }
-
-    return chunks;
-  }
-
-  // Translate with all 4 providers (automatic fallback chain)
-  async translateText(text, targetLanguage) {
-    const languageObj = LANGUAGES.find(lang => lang.code === targetLanguage);
-    const languageName = languageObj ? languageObj.name : targetLanguage;
-
-    const prompt = `Translate ONLY this text to ${languageName}. Return ONLY the translation, nothing else.
-
-${text}`;
-
-    // Provider chain: Groq → DeepSeek → OpenRouter → Gemini
-    const providers = [
-      {
-        name: 'Groq',
-        call: async () => {
-          const apiKey = this.groqApiKeys[this.currentApiKeyIndex];
-          const response = await fetch(GROQ_API_URL, {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${apiKey}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              model: GROQ_MODEL,
-              messages: [
-                { role: 'system', content: 'You are a professional translator. Translate the ENTIRE text accurately. Return ONLY the translation.' },
-                { role: 'user', content: prompt }
-              ],
-              temperature: 0.2,
-              max_tokens: 4096,
-            }),
-          });
-
-          if (response.status === 429 || response.status === 401) {
-            throw new Error('Rate limited or unauthorized');
-          }
-
-          if (!response.ok) throw new Error(`Groq error: ${response.status}`);
-
-          const data = await response.json();
-          return data.choices[0]?.message?.content?.trim();
-        }
-      },
-      {
-        name: 'DeepSeek',
-        call: async () => {
-          const response = await fetch(DEEPSEEK_API_URL, {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              model: DEEPSEEK_MODEL,
-              messages: [
-                { role: 'system', content: 'You are a professional translator. Return ONLY the translation.' },
-                { role: 'user', content: prompt }
-              ],
-              temperature: 0.2,
-              max_tokens: 4096,
-            }),
-          });
-
-          if (!response.ok) throw new Error(`DeepSeek error: ${response.status}`);
-
-          const data = await response.json();
-          return data.choices[0]?.message?.content?.trim();
-        }
-      },
-      {
-        name: 'OpenRouter',
-        call: async () => {
-          const response = await fetch(OPENROUTER_API_URL, {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
-              'Content-Type': 'application/json',
-              'HTTP-Referer': 'https://smart-notes-pkanotara.netlify.app',
-              'X-Title': 'Smart Notes',
-            },
-            body: JSON.stringify({
-              model: OPENROUTER_MODEL,
-              messages: [
-                { role: 'system', content: 'You are a professional translator. Return ONLY the translation.' },
-                { role: 'user', content: prompt }
-              ],
-              temperature: 0.2,
-              max_tokens: 4096,
-            }),
-          });
-
-          if (!response.ok) throw new Error(`OpenRouter error: ${response.status}`);
-
-          const data = await response.json();
-          return data.choices[0]?.message?.content?.trim();
-        }
-      },
-      {
-        name: 'Gemini',
-        call: async () => {
-          const response = await fetch(GEMINI_API_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              contents: [{ parts: [{ text: prompt }] }],
-              generationConfig: {
-                temperature: 0.2,
-                maxOutputTokens: 4096,
-              }
-            }),
-          });
-
-          if (!response.ok) throw new Error(`Gemini error: ${response.status}`);
-
-          const data = await response.json();
-          return data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
-        }
-      }
-    ];
-
-    // Try each provider in sequence
-    for (const provider of providers) {
-      try {
-        console.log(`🔄 Trying ${provider.name} for translation...`);
-        const result = await provider.call();
-        
-        if (result) {
-          console.log(`✅ ${provider.name} translation successful`);
-          return result;
-        }
-      } catch (error) {
-        console.warn(`⚠️ ${provider.name} failed:`, error.message);
-        await wait(500);
+      if (response.status === 401) {
+        groqIndex = (groqIndex + 1) % groqKeys.length;
         continue;
       }
-    }
 
-    throw new Error('All translation providers failed');
-  }
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
-  async translateNote(content, targetLanguage) {
-    try {
-      console.log('🌐 Starting translation...');
-
-      // Get plain text
-      const div = document.createElement('div');
-      div.innerHTML = content;
-      const plainText = div.textContent || div.innerText || '';
-
-      if (!plainText || plainText.trim().length < 5) {
-        throw new Error('Content too short to translate');
-      }
-
-      console.log(`📝 Original: ${plainText.length} characters`);
-
-      // Split into chunks
-      const chunks = this.splitIntoChunks(plainText, 3000);
-      console.log(`📦 Split into ${chunks.length} chunk(s)`);
-
-      const translatedChunks = [];
-
-      // Translate each chunk
-      for (let i = 0; i < chunks.length; i++) {
-        console.log(`🔄 Translating chunk ${i + 1}/${chunks.length}...`);
-        const translated = await this.translateText(chunks[i], targetLanguage);
-        translatedChunks.push(translated);
-        
-        if (i < chunks.length - 1) {
-          await wait(300); // Small delay between chunks
-        }
-      }
-
-      // Combine translated chunks
-      const fullTranslation = translatedChunks.join('\n\n');
-      console.log(`📝 Translated: ${fullTranslation.length} characters`);
-
-      // Convert to HTML
-      const paragraphs = fullTranslation
-        .split('\n')
-        .filter(p => p.trim())
-        .map(p => `<p>${p.trim()}</p>`)
-        .join('');
-
-      const finalHtml = paragraphs || `<p>${fullTranslation}</p>`;
-      console.log('✅ Translation complete!');
-
-      return finalHtml;
-
+      const data = await response.json();
+      return data.choices?.[0]?.message?.content?.trim();
     } catch (error) {
-      console.error('❌ Translation error:', error);
-      throw error;
+      if (i < groqKeys.length - 1) {
+        groqIndex = (groqIndex + 1) % groqKeys.length;
+        await wait(300);
+      } else {
+        throw error;
+      }
     }
   }
-}
+};
 
-export const translationService = new TranslationService();
+// Gemini
+const callGemini = async (prompt) => {
+  for (let i = 0; i < geminiKeys.length; i++) {
+    try {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKeys[geminiIndex]}`;
+
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { temperature: 0.2, maxOutputTokens: 4096 }
+        }),
+      });
+
+      if (response.status === 401 || response.status === 403) {
+        geminiIndex = (geminiIndex + 1) % geminiKeys.length;
+        continue;
+      }
+
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+      const data = await response.json();
+      return data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+    } catch (error) {
+      if (i < geminiKeys.length - 1) {
+        geminiIndex = (geminiIndex + 1) % geminiKeys.length;
+        await wait(300);
+      } else {
+        throw error;
+      }
+    }
+  }
+};
+
+// DeepSeek
+const callDeepSeek = async (prompt) => {
+  if (!DEEPSEEK_API_KEY?.length > 10) throw new Error('No DeepSeek key');
+
+  const response = await fetch('https://api.deepseek.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'deepseek-chat',
+      messages: [
+        { role: 'system', content: 'You are a professional translator. Return ONLY the translation.' },
+        { role: 'user', content: prompt }
+      ],
+      temperature: 0.2,
+      max_tokens: 4096,
+    }),
+  });
+
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+  const data = await response.json();
+  return data.choices?.[0]?.message?.content?.trim();
+};
+
+// OpenRouter
+const callOpenRouter = async (prompt) => {
+  if (!OPENROUTER_API_KEY?.length > 10) throw new Error('No OpenRouter key');
+
+  const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
+      'Content-Type': 'application/json',
+      'HTTP-Referer': window.location.origin,
+    },
+    body: JSON.stringify({
+      model: 'meta-llama/llama-3.1-8b-instruct:free',
+      messages: [
+        { role: 'system', content: 'You are a professional translator. Return ONLY the translation.' },
+        { role: 'user', content: prompt }
+      ],
+      temperature: 0.2,
+      max_tokens: 4096,
+    }),
+  });
+
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+  const data = await response.json();
+  return data.choices?.[0]?.message?.content?.trim();
+};
+
+// Translate text with fallback
+const translateText = async (text, targetLanguage) => {
+  const languageName = LANGUAGES.find(l => l.code === targetLanguage)?.name || targetLanguage;
+  const prompt = `Translate ONLY this text to ${languageName}. Return ONLY the translation:\n\n${text}`;
+
+  const providers = [];
+
+  if (groqKeys.length > 0) providers.push(() => callGroq(prompt));
+  if (DEEPSEEK_API_KEY?.length > 10) providers.push(() => callDeepSeek(prompt));
+  if (geminiKeys.length > 0) providers.push(() => callGemini(prompt));
+  if (OPENROUTER_API_KEY?.length > 10) providers.push(() => callOpenRouter(prompt));
+
+  if (providers.length === 0) throw new Error('No valid API keys');
+
+  for (let i = 0; i < providers.length; i++) {
+    try {
+      const result = await providers[i]();
+      if (result) return result;
+    } catch (error) {
+      if (i < providers.length - 1) await wait(500);
+      else throw new Error('All providers failed');
+    }
+  }
+};
+
+// Main translation function
+const translateNote = async (content, targetLanguage) => {
+  const div = document.createElement('div');
+  div.innerHTML = content;
+  const plainText = div.textContent || div.innerText || '';
+
+  if (!plainText || plainText.trim().length < 5) {
+    throw new Error('Content too short to translate');
+  }
+
+  const chunks = splitIntoChunks(plainText, 3000);
+  const translated = [];
+
+  for (let i = 0; i < chunks.length; i++) {
+    const result = await translateText(chunks[i], targetLanguage);
+    translated.push(result);
+    if (i < chunks.length - 1) await wait(300);
+  }
+
+  const full = translated.join('\n\n');
+  const paragraphs = full
+    .split('\n')
+    .filter(p => p.trim())
+    .map(p => `<p>${p.trim()}</p>`)
+    .join('');
+
+  return paragraphs || `<p>${full}</p>`;
+};
+
+export const translationService = { translateNote };

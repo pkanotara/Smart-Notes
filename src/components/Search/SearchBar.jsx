@@ -21,6 +21,7 @@ const SearchBar = ({ onSearch }) => {
         className="w-full pl-10 pr-4 py-2.5 bg-[#F5F5F5] dark:bg-[#1A1A1A] text-[#171717] dark:text-[#E5E5E5] text-sm rounded-xl border border-[#E5E5E5] dark:border-[#262626] focus:outline-none focus:ring-2 focus:ring-[#6366F1] focus:border-transparent placeholder:text-[#A3A3A3] dark:placeholder:text-[#525252] transition-all font-medium"
       />
     </div>
+
   );
 };
 

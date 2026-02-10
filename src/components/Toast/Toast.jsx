@@ -1,7 +1,7 @@
-import React, { useEffect } from 'react';
-import { X, CheckCircle, AlertCircle, Info, AlertTriangle } from 'lucide-react';
+import React, { useEffect } from "react";
+import { X, CheckCircle, AlertCircle, Info, AlertTriangle } from "lucide-react";
 
-const Toast = ({ message, type = 'info', onClose, duration = 3000 }) => {
+const Toast = ({ message, type = "info", onClose, duration = 3000 }) => {
   useEffect(() => {
     if (duration) {
       const timer = setTimeout(onClose, duration);
@@ -17,21 +17,24 @@ const Toast = ({ message, type = 'info', onClose, duration = 3000 }) => {
   };
 
   const styles = {
-    success: 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800 text-green-800 dark:text-green-200',
-    error: 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-800 dark:text-red-200',
-    warning: 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800 text-yellow-800 dark:text-yellow-200',
-    info: 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-200',
+    success:
+      "backdrop-blur-md bg-green-500/10 border border-green-500/20 text-green-700 dark:text-green-300 shadow-sm",
+    error:
+      "backdrop-blur-md bg-red-500/10 border border-red-500/20 text-red-700 dark:text-red-300 shadow-sm",
+    warning:
+      "backdrop-blur-md bg-yellow-500/10 border border-yellow-500/20 text-yellow-700 dark:text-yellow-300 shadow-sm",
+    info: "backdrop-blur-md bg-blue-500/10 border border-blue-500/20 text-blue-700 dark:text-blue-300 shadow-sm",
   };
 
   return (
-    <div className={`
+    <div
+      className={`
       flex items-center gap-3 px-4 py-3 rounded-xl 
       border shadow-lg backdrop-blur-xl animate-slide-in-right max-w-md
       ${styles[type]}
-    `}>
-      <div className="flex-shrink-0">
-        {icons[type]}
-      </div>
+    `}
+    >
+      <div className="flex-shrink-0">{icons[type]}</div>
       <p className="flex-1 text-sm font-medium">{message}</p>
       <button
         onClick={onClose}
