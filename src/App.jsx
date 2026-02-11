@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import Editor from "./components/RichTextEditor/Editor";
-
+import QuillEditor from "./components/RichTextEditor/QuillEditor";
 import APIKeyChecker from './components/APIKeyChecker';
 
 import NotesList from "./components/NotesList/NotesList";
@@ -508,7 +507,7 @@ function App() {
                   minSize={30}
                   maxSize={70}
                   left={
-                    <Editor
+                    <QuillEditor
                       key={`${activeNoteId}-${activeNote.isEncrypted}`}
                       noteId={activeNoteId}
                       title={activeNote.title}
@@ -548,7 +547,7 @@ function App() {
                   }
                 />
               ) : (
-                <Editor
+                <QuillEditor
                   key={`${activeNoteId}-${activeNote.isEncrypted}`}
                   noteId={activeNoteId}
                   title={activeNote.title}
