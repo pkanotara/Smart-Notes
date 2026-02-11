@@ -7,10 +7,11 @@ import {
   Lock, 
   Unlock, 
   Languages, 
-  Edit2, 
+  Edit3, 
   Clock,
   User,
-  CheckCircle
+  FileText,
+  Check
 } from "lucide-react";
 import AIFloatingMenu from "../AIFloatingMenu/AIFloatingMenu";
 import { storageService } from "../../services/storageService";
@@ -28,36 +29,34 @@ const QuillEditor = ({
   onTranslate,
   isEncrypted,
   isPinned,
-  glossaryTerms = [],
   noteId,
   title,
   onTitleChange,
-  grammarErrors = [],
-  onFixGrammarError,
   createdAt,
   updatedAt,
   createdBy,
-  updateNote,
 }) => {
   const quillRef = useRef(null);
   const [localTitle, setLocalTitle] = useState(title);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
-  const [showTimestampTooltip, setShowTimestampTooltip] = useState(false);
+  const [showMetadata, setShowMetadata] = useState(false);
 
   // Sync title when it changes
   useEffect(() => {
     setLocalTitle(title);
   }, [title, noteId]);
 
-  // Calculate word count
-  const getWordCount = () => {
-    if (isEncrypted) return "🔒 Encrypted";
+  // Calculate statistics
+  const getStats = () => {
+    if (isEncrypted) return { words: 0, chars: 0, encrypted: true };
     const tempDiv = document.createElement("div");
     tempDiv.innerHTML = content || "";
     const text = tempDiv.textContent || "";
     const words = text.trim().split(/\s+/).filter(Boolean).length;
-    return `${words} words · ${text.length} characters`;
+    return { words, chars: text.length, encrypted: false };
   };
+
+  const stats = getStats();
 
   // Handle title change
   const handleTitleBlur = () => {
@@ -80,7 +79,7 @@ const QuillEditor = ({
     }
   };
 
-  // Quill modules configuration
+  // Quill configuration
   const modules = {
     toolbar: [
       [{ header: [1, 2, 3, false] }],
@@ -94,147 +93,210 @@ const QuillEditor = ({
     ],
   };
 
-  // Quill formats
   const formats = [
-    "header",
-    "bold",
-    "italic",
-    "underline",
-    "strike",
-    "list",
-    "bullet",
-    "align",
-    "blockquote",
-    "code-block",
-    "color",
-    "background",
-    "link",
+    "header", "bold", "italic", "underline", "strike",
+    "list", "bullet", "align", "blockquote", "code-block",
+    "color", "background", "link",
   ];
 
   return (
-    <div className="h-full flex flex-col bg-white dark:bg-[#0A0A0A] rounded-2xl shadow-lg border border-[#E5E5E5] dark:border-[#1F1F1F] overflow-hidden">
-      {/* Header with Title */}
-      <div className="flex-shrink-0 border-b border-[#E5E5E5] dark:border-[#1F1F1F] bg-white/80 dark:bg-[#0F0F0F]/80 backdrop-blur-xl">
-        <div className="px-4 sm:px-6 py-4 space-y-3">
-          {/* Title */}
-          {isEditingTitle ? (
-            <input
-              type="text"
-              value={localTitle}
-              onChange={(e) => setLocalTitle(e.target.value)}
-              onBlur={handleTitleBlur}
-              onKeyDown={handleTitleKeyDown}
-              autoFocus
-              className="w-full text-2xl sm:text-3xl font-bold bg-transparent outline-none border-b-2 border-[#6366F1] dark:border-[#8B5CF6] text-[#171717] dark:text-[#FAFAFA] pb-1"
-            />
-          ) : (
-            <div className="flex items-center gap-3 group">
-              <h1 className="text-2xl sm:text-3xl font-bold text-[#171717] dark:text-[#FAFAFA] flex-1">
-                {localTitle}
-              </h1>
-              <button
-                onClick={() => setIsEditingTitle(true)}
-                className="p-2 opacity-0 group-hover:opacity-100 hover:bg-[#F5F5F5] dark:hover:bg-[#1A1A1A] rounded-lg transition-all"
-                title="Edit title"
-              >
-                <Edit2 size={18} className="text-[#737373] dark:text-[#A3A3A3]" />
-              </button>
-            </div>
-          )}
-
-          {/* Action Buttons */}
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              onClick={onTogglePin}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
-                isPinned
-                  ? "bg-[#6366F1] text-white"
-                  : "bg-[#F5F5F5] dark:bg-[#1A1A1A] text-[#737373] dark:text-[#A3A3A3] hover:bg-[#E5E5E5] dark:hover:bg-[#262626]"
-              }`}
-            >
-              <Pin size={16} />
-              {isPinned ? "Pinned" : "Pin"}
-            </button>
-
-            <button
-              onClick={onToggleEncryption}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
-                isEncrypted
-                  ? "bg-green-500 text-white"
-                  : "bg-[#F5F5F5] dark:bg-[#1A1A1A] text-[#737373] dark:text-[#A3A3A3] hover:bg-[#E5E5E5] dark:hover:bg-[#262626]"
-              }`}
-            >
-              {isEncrypted ? <Lock size={16} /> : <Unlock size={16} />}
-              {isEncrypted ? "Locked" : "Lock"}
-            </button>
-
-            {!isEncrypted && (
-              <button
-                onClick={onTranslate}
-                className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium bg-[#F5F5F5] dark:bg-[#1A1A1A] text-[#737373] dark:text-[#A3A3A3] hover:bg-[#E5E5E5] dark:hover:bg-[#262626] transition-all"
-              >
-                <Languages size={16} />
-                Translate
-              </button>
+    <div className="h-full flex flex-col bg-white dark:bg-[#0A0A0A] rounded-2xl border border-[#E5E5E5] dark:border-[#1F1F1F] overflow-hidden shadow-sm">
+      
+      {/* ========== HEADER ========== */}
+      <div className="flex-shrink-0 bg-gradient-to-b from-white to-[#FAFAFA] dark:from-[#0F0F0F] dark:to-[#0A0A0A] border-b border-[#E5E5E5] dark:border-[#1F1F1F]">
+        <div className="px-4 sm:px-6 py-4 sm:py-5">
+          
+          {/* Title Section */}
+          <div className="mb-4">
+            {isEditingTitle ? (
+              <input
+                type="text"
+                value={localTitle}
+                onChange={(e) => setLocalTitle(e.target.value)}
+                onBlur={handleTitleBlur}
+                onKeyDown={handleTitleKeyDown}
+                autoFocus
+                className="w-full text-2xl sm:text-3xl font-bold bg-transparent outline-none border-b-2 border-[#6366F1] dark:border-[#8B5CF6] text-[#171717] dark:text-[#FAFAFA] pb-2 transition-all"
+                placeholder="Untitled Note"
+              />
+            ) : (
+              <div className="group flex items-start gap-3">
+                <h1 className="flex-1 text-2xl sm:text-3xl font-bold text-[#171717] dark:text-[#FAFAFA] leading-tight">
+                  {localTitle}
+                </h1>
+                <button
+                  onClick={() => setIsEditingTitle(true)}
+                  className="opacity-0 group-hover:opacity-100 p-2 hover:bg-[#F5F5F5] dark:hover:bg-[#1A1A1A] rounded-lg transition-all"
+                  title="Edit title"
+                >
+                  <Edit3 size={18} className="text-[#737373] dark:text-[#A3A3A3]" />
+                </button>
+              </div>
             )}
-
-            <button
-              onClick={onDelete}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium bg-red-500/10 text-red-600 dark:text-red-400 hover:bg-red-500/20 transition-all ml-auto"
-            >
-              <Trash2 size={16} />
-              Delete
-            </button>
           </div>
 
-          {/* Metadata */}
-          <div className="flex flex-wrap items-center gap-4 text-xs text-[#A3A3A3] dark:text-[#525252]">
-            <div className="flex items-center gap-1.5">
-              <User size={14} />
-              <span>{createdBy}</span>
-            </div>
-
-            <div
-              className="flex items-center gap-1.5 cursor-pointer relative"
-              onMouseEnter={() => setShowTimestampTooltip(true)}
-              onMouseLeave={() => setShowTimestampTooltip(false)}
-            >
-              <Clock size={14} />
-              <span>{storageService.formatTimestamp(updatedAt)}</span>
+          {/* Action Bar */}
+          <div className="flex flex-wrap items-center gap-2 justify-between">
+            
+            {/* Left: Primary Actions */}
+            <div className="flex items-center gap-2">
               
-              {showTimestampTooltip && (
-                <div className="absolute top-full left-0 mt-2 p-3 bg-[#171717] dark:bg-[#FAFAFA] text-[#FAFAFA] dark:text-[#171717] rounded-lg shadow-xl text-xs whitespace-nowrap z-50">
-                  <div>Created: {storageService.getFullTimestamp(createdAt)}</div>
-                  <div>Updated: {storageService.getFullTimestamp(updatedAt)}</div>
-                </div>
+              {/* Pin Button */}
+              <button
+                onClick={onTogglePin}
+                className={`group relative flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                  isPinned
+                    ? "bg-gradient-to-r from-[#6366F1] to-[#8B5CF6] text-white shadow-md"
+                    : "bg-[#F5F5F5] dark:bg-[#1A1A1A] text-[#737373] dark:text-[#A3A3A3] hover:bg-[#E5E5E5] dark:hover:bg-[#262626]"
+                }`}
+                title={isPinned ? "Unpin note" : "Pin note"}
+              >
+                <Pin size={16} className={isPinned ? "fill-current" : ""} />
+                <span className="hidden sm:inline">{isPinned ? "Pinned" : "Pin"}</span>
+              </button>
+
+              {/* Lock Button */}
+              <button
+                onClick={onToggleEncryption}
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                  isEncrypted
+                    ? "bg-gradient-to-r from-green-500 to-green-600 text-white shadow-md"
+                    : "bg-[#F5F5F5] dark:bg-[#1A1A1A] text-[#737373] dark:text-[#A3A3A3] hover:bg-[#E5E5E5] dark:hover:bg-[#262626]"
+                }`}
+                title={isEncrypted ? "Unlock note" : "Lock note"}
+              >
+                {isEncrypted ? <Lock size={16} /> : <Unlock size={16} />}
+                <span className="hidden sm:inline">{isEncrypted ? "Locked" : "Lock"}</span>
+              </button>
+
+              {/* Translate Button */}
+              {!isEncrypted && (
+                <button
+                  onClick={onTranslate}
+                  className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 transition-all shadow-md hover:shadow-lg"
+                  title="Translate note"
+                >
+                  <Languages size={16} />
+                  <span className="hidden sm:inline">Translate</span>
+                </button>
               )}
             </div>
 
-            <div className="flex items-center gap-1.5">
-              <CheckCircle size={14} />
-              <span>{getWordCount()}</span>
+            {/* Right: Secondary Actions */}
+            <div className="flex items-center gap-2">
+              
+              {/* Stats */}
+              <div className="hidden md:flex items-center gap-3 px-3 py-2 bg-[#F5F5F5] dark:bg-[#1A1A1A] rounded-lg text-xs">
+                {stats.encrypted ? (
+                  <span className="flex items-center gap-1.5 text-[#737373] dark:text-[#A3A3A3]">
+                    <Lock size={12} />
+                    Encrypted
+                  </span>
+                ) : (
+                  <>
+                    <span className="text-[#737373] dark:text-[#A3A3A3]">
+                      {stats.words} words
+                    </span>
+                    <div className="w-1 h-1 rounded-full bg-[#A3A3A3]" />
+                    <span className="text-[#737373] dark:text-[#A3A3A3]">
+                      {stats.chars} chars
+                    </span>
+                  </>
+                )}
+              </div>
+
+              {/* Note Info Button */}
+              <button
+                onClick={() => setShowMetadata(!showMetadata)}
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                  showMetadata
+                    ? "bg-[#6366F1]/10 text-[#6366F1]"
+                    : "bg-[#F5F5F5] dark:bg-[#1A1A1A] text-[#737373] dark:text-[#A3A3A3] hover:bg-[#E5E5E5] dark:hover:bg-[#262626]"
+                }`}
+                title="Note information"
+              >
+                <FileText size={16} />
+                <span className="hidden sm:inline">Info</span>
+              </button>
+
+              {/* Delete Button */}
+              <button
+                onClick={onDelete}
+                className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium bg-red-500/10 text-red-600 dark:text-red-400 hover:bg-red-500/20 transition-all"
+                title="Delete note"
+              >
+                <Trash2 size={16} />
+                <span className="hidden sm:inline">Delete</span>
+              </button>
             </div>
           </div>
+
+          {/* Metadata Panel */}
+          {showMetadata && (
+            <div className="mt-4 p-4 bg-[#F5F5F5] dark:bg-[#1A1A1A] rounded-xl border border-[#E5E5E5] dark:border-[#262626] animate-slide-down">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                <div className="flex items-center gap-2">
+                  <User size={14} className="text-[#737373] dark:text-[#A3A3A3]" />
+                  <span className="text-[#737373] dark:text-[#A3A3A3]">Author:</span>
+                  <span className="text-[#171717] dark:text-[#FAFAFA] font-medium">{createdBy}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Clock size={14} className="text-[#737373] dark:text-[#A3A3A3]" />
+                  <span className="text-[#737373] dark:text-[#A3A3A3]">Created:</span>
+                  <span className="text-[#171717] dark:text-[#FAFAFA] font-medium">
+                    {new Date(createdAt).toLocaleDateString()}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Clock size={14} className="text-[#737373] dark:text-[#A3A3A3]" />
+                  <span className="text-[#737373] dark:text-[#A3A3A3]">Updated:</span>
+                  <span className="text-[#171717] dark:text-[#FAFAFA] font-medium">
+                    {storageService.formatTimestamp(updatedAt)}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <FileText size={14} className="text-[#737373] dark:text-[#A3A3A3]" />
+                  <span className="text-[#737373] dark:text-[#A3A3A3]">Status:</span>
+                  <span className={`font-medium ${
+                    isEncrypted 
+                      ? "text-green-600 dark:text-green-400" 
+                      : "text-blue-600 dark:text-blue-400"
+                  }`}>
+                    {isEncrypted ? "Encrypted" : "Active"}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Quill Editor */}
+      {/* ========== EDITOR AREA ========== */}
       {isEncrypted ? (
-        <div className="flex-1 flex items-center justify-center p-8">
+        <div className="flex-1 flex items-center justify-center p-8 bg-gradient-to-b from-green-50/50 to-transparent dark:from-green-950/10">
           <div className="text-center max-w-md">
-            <div className="w-20 h-20 mx-auto mb-4 bg-green-500/10 rounded-full flex items-center justify-center">
-              <Lock className="text-green-500" size={40} />
+            <div className="relative inline-flex mb-6">
+              <div className="w-24 h-24 bg-gradient-to-br from-green-500 to-green-600 rounded-3xl flex items-center justify-center shadow-2xl">
+                <Lock className="text-white" size={48} />
+              </div>
+              <div className="absolute -top-1 -right-1 w-8 h-8 bg-green-400 rounded-full flex items-center justify-center border-4 border-white dark:border-[#0A0A0A]">
+                <Check size={16} className="text-white" />
+              </div>
             </div>
-            <h3 className="text-xl font-bold text-[#171717] dark:text-[#FAFAFA] mb-2">
-              Note is Encrypted
+            
+            <h3 className="text-2xl font-bold text-[#171717] dark:text-[#FAFAFA] mb-3">
+              Note is Secured
             </h3>
-            <p className="text-sm text-[#737373] dark:text-[#A3A3A3] mb-4">
-              This note is password protected. Click "Unlock" to view and edit.
+            <p className="text-sm text-[#737373] dark:text-[#A3A3A3] mb-6 leading-relaxed">
+              This note is protected with AES-256 encryption. <br />
+              Click below to unlock and view the content.
             </p>
+            
             <button
               onClick={onToggleEncryption}
-              className="px-6 py-3 bg-green-500 hover:bg-green-600 text-white rounded-xl font-semibold transition-all"
+              className="px-8 py-3.5 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white rounded-xl font-semibold transition-all shadow-lg hover:shadow-xl active:scale-95 flex items-center gap-2 mx-auto"
             >
+              <Unlock size={18} />
               Unlock Note
             </button>
           </div>
@@ -249,7 +311,7 @@ const QuillEditor = ({
             modules={modules}
             formats={formats}
             placeholder="Start writing your note..."
-            className="h-full quill-editor-custom"
+            className="h-full quill-editor-pro"
           />
         </div>
       )}
